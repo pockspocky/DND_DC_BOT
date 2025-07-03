@@ -13,10 +13,16 @@ load_dotenv()
 # 代理配置（如果需要）
 PROXY_URL = os.getenv('PROXY_URL')  # 例如: http://127.0.0.1:7890
 
-# 如果设置了代理，配置环境变量
+# 备份和管理代理设置
+original_http_proxy = os.environ.get('HTTP_PROXY')
+original_https_proxy = os.environ.get('HTTPS_PROXY')
+
+# 如果设置了代理，只为特定服务配置环境变量
 if PROXY_URL:
-    os.environ['HTTP_PROXY'] = PROXY_URL
-    os.environ['HTTPS_PROXY'] = PROXY_URL
+    # 暂时不设置全局代理，避免影响Discord连接
+    # os.environ['HTTP_PROXY'] = PROXY_URL
+    # os.environ['HTTPS_PROXY'] = PROXY_URL
+    pass
 
 # 配置日志
 logging.basicConfig(
@@ -49,7 +55,8 @@ class DNDBot(commands.Bot):
             command_prefix=os.getenv('PREFIX', '!'),
             intents=intents,
             help_command=None,  # 禁用默认帮助命令，后续自定义
-            proxy=PROXY_URL if PROXY_URL else None
+            # 暂时不使用代理，避免连接问题
+            # proxy=PROXY_URL if PROXY_URL else None
         )
         
     async def setup_hook(self):
@@ -71,6 +78,13 @@ class DNDBot(commands.Bot):
             logger.info("骰子命令扩展已加载")
         except Exception as e:
             logger.error(f"加载骰子命令扩展失败: {e}")
+        
+        # 加载查询命令扩展
+        try:
+            await self.load_extension('queries.query_commands')
+            logger.info("查询命令扩展已加载")
+        except Exception as e:
+            logger.error(f"加载查询命令扩展失败: {e}")
         
         # 同步斜杠命令到Discord
         try:
@@ -179,8 +193,14 @@ async def help_command(interaction: discord.Interaction):
     )
     
     embed.add_field(
+        name="🔍 查询功能",
+        value="`/spell <法术名>` - 查询D&D 5e法术信息\n`/monster <怪物名>` - 查询怪物属性和能力\n`/skill <技能名>` - 查询技能详细说明",
+        inline=False
+    )
+    
+    embed.add_field(
         name="🚧 即将推出",
-        value="• 角色管理 (`/character`)\n• 战斗辅助 (`/combat`)\n• 查询功能 (`/spell`, `/monster`)",
+        value="• 角色管理 (`/character`)\n• 战斗辅助 (`/combat`)\n• 装备查询 (`/equipment`)",
         inline=False
     )
     

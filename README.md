@@ -1,6 +1,6 @@
 # DND_DC_BOT - 龙与地下城Discord机器人
 
-![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.3-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络问题-修复中-orange)
+![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.4-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络问题-修复中-orange)
 
 一个专为龙与地下城(D&D)游戏设计的Discord机器人，旨在为玩家和DM提供便捷的游戏辅助功能。
 
@@ -41,7 +41,7 @@
 
 ### 查询系统 ✅
 - ✅ **法术查询**: `/spell fireball` - 完整的法术信息
-- ✅ **怪物查询**: `/monster goblin` - 战斗数据和属性
+- ✅ **怪物查询**: `/monster goblin` - 增强版本，包含攻击、传奇动作、先攻、豁免、特殊能力等
 - ✅ **技能查询**: `/skill perception` - 技能说明和关联属性
 
 ## 🎲 主要功能
@@ -357,6 +357,20 @@ lsof -i :7890
 
 ## 📝 更新日志
 
+### v1.2.4 (2025-07-03) 🚀
+- **怪物查询增强**: 完全重写怪物查询功能，新增：
+  - 攻击动作和伤害信息
+  - 传奇动作（高级怪物）
+  - 先攻修正值计算
+  - 豁免检定和技能熟练项
+  - 特殊能力和种族特性
+  - 抗性/免疫/弱点信息
+  - 感官能力和被动察觉
+  - 反应动作（如果有）
+- **界面优化**: 属性值现在显示修正值，更符合游戏使用习惯
+- **字段长度优化**: 确保所有信息都在Discord字段限制内
+- **安全配置**: 新增安全配置指南，防止敏感信息泄露
+
 ### v1.2.3 (2025-07-03) 🔧
 - **网络配置优化**: 改进代理配置处理机制
 - **启动脚本**: 添加专用启动脚本解决连接问题
@@ -405,4 +419,4 @@ lsof -i :7890
 - Discord机器人框架搭建
 
 ---
-*最后更新: 2025年7月3日 - v1.2.3发布，优化网络配置和启动方式*
+*最后更新: 2025年7月3日 - v1.2.4发布，完全增强怪物查询功能*

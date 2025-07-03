@@ -192,6 +192,226 @@ class QueryCommands(commands.Cog):
                 self.logger.error(f"Discord响应失败: {response_error}")
                 # 静默处理，避免进一步崩溃
     
+    def _format_monster_embed(self, monster_data: Dict) -> discord.Embed:
+        """格式化怪物信息为Discord嵌入"""
+        embed = discord.Embed(
+            title=f"🐉 {monster_data['name']}",
+            description=f"{monster_data['size']} {monster_data['type']}, {monster_data['alignment']}",
+            color=0xDC143C
+        )
+        
+        # 基本信息
+        ac_info = f"{monster_data['armor_class'][0]['value']}"
+        if len(monster_data['armor_class']) > 0 and 'type' in monster_data['armor_class'][0]:
+            ac_info += f" ({monster_data['armor_class'][0]['type']})"
+            
+        # 计算先攻修正
+        dex_modifier = (monster_data['dexterity'] - 10) // 2
+        initiative = f"{dex_modifier:+d}"
+        
+        embed.add_field(
+            name="基本信息",
+            value=(
+                f"**AC**: {ac_info}\n"
+                f"**HP**: {monster_data['hit_points']} ({monster_data['hit_points_roll']})\n"
+                f"**先攻**: {initiative}\n"
+                f"**CR**: {monster_data['challenge_rating']}\n"
+                f"**XP**: {monster_data['xp']:,}"
+            ),
+            inline=True
+        )
+        
+        # 属性值
+        embed.add_field(
+            name="属性",
+            value=(
+                f"**STR**: {monster_data['strength']} ({(monster_data['strength'] - 10) // 2:+d})\n"
+                f"**DEX**: {monster_data['dexterity']} ({(monster_data['dexterity'] - 10) // 2:+d})\n"
+                f"**CON**: {monster_data['constitution']} ({(monster_data['constitution'] - 10) // 2:+d})\n"
+                f"**INT**: {monster_data['intelligence']} ({(monster_data['intelligence'] - 10) // 2:+d})\n"
+                f"**WIS**: {monster_data['wisdom']} ({(monster_data['wisdom'] - 10) // 2:+d})\n"
+                f"**CHA**: {monster_data['charisma']} ({(monster_data['charisma'] - 10) // 2:+d})"
+            ),
+            inline=True
+        )
+        
+        # 速度
+        speed_info = []
+        for speed_type, speed_value in monster_data['speed'].items():
+            speed_info.append(f"{speed_type}: {speed_value}")
+        
+        embed.add_field(
+            name="速度",
+            value="\n".join(speed_info),
+            inline=True
+        )
+        
+        # 豁免检定
+        if monster_data.get('proficiencies'):
+            saving_throws = []
+            skills = []
+            
+            for prof in monster_data['proficiencies']:
+                prof_name = prof['proficiency']['name']
+                if 'Saving Throw' in prof_name:
+                    stat = prof_name.split(': ')[1]
+                    saving_throws.append(f"**{stat}**: {prof['value']:+d}")
+                elif 'Skill' in prof_name:
+                    skill_name = prof_name.split(': ')[1]
+                    skills.append(f"**{skill_name}**: {prof['value']:+d}")
+            
+            if saving_throws:
+                embed.add_field(
+                    name="豁免检定",
+                    value="\n".join(saving_throws),
+                    inline=True
+                )
+            
+            if skills:
+                embed.add_field(
+                    name="技能",
+                    value="\n".join(skills),
+                    inline=True
+                )
+        
+        # 抗性/免疫
+        resistances = []
+        if monster_data.get('damage_resistances'):
+            resistances.append(f"**抗性**: {', '.join(monster_data['damage_resistances'])}")
+        if monster_data.get('damage_immunities'):
+            resistances.append(f"**免疫**: {', '.join(monster_data['damage_immunities'])}")
+        if monster_data.get('damage_vulnerabilities'):
+            resistances.append(f"**弱点**: {', '.join(monster_data['damage_vulnerabilities'])}")
+        if monster_data.get('condition_immunities'):
+            condition_names = [cond['name'] for cond in monster_data['condition_immunities']]
+            resistances.append(f"**状态免疫**: {', '.join(condition_names)}")
+        
+        if resistances:
+            embed.add_field(
+                name="抗性/免疫",
+                value="\n".join(resistances),
+                inline=False
+            )
+        
+        # 感官
+        if monster_data.get('senses'):
+            senses_info = []
+            for sense, value in monster_data['senses'].items():
+                if sense == 'passive_perception':
+                    senses_info.append(f"**被动察觉**: {value}")
+                else:
+                    senses_info.append(f"**{sense}**: {value}")
+            
+            if senses_info:
+                embed.add_field(
+                    name="感官",
+                    value="\n".join(senses_info),
+                    inline=True
+                )
+        
+        # 语言
+        if monster_data.get('languages'):
+            embed.add_field(
+                name="语言",
+                value=monster_data['languages'],
+                inline=True
+            )
+        
+        # 特殊能力
+        if monster_data.get('special_abilities'):
+            abilities_text = []
+            for ability in monster_data['special_abilities']:
+                name = ability['name']
+                desc = ability.get('desc', '无描述')
+                # 限制描述长度
+                if len(desc) > 80:
+                    desc = desc[:80] + "..."
+                abilities_text.append(f"**{name}**: {desc}")
+            
+            # 限制字段总长度
+            abilities_value = "\n".join(abilities_text)
+            if len(abilities_value) > 1000:
+                abilities_value = abilities_value[:1000] + "..."
+            
+            if abilities_text:
+                embed.add_field(
+                    name="特殊能力",
+                    value=abilities_value,
+                    inline=False
+                )
+        
+        # 攻击动作
+        if monster_data.get('actions'):
+            actions_text = []
+            for action in monster_data['actions']:
+                name = action['name']
+                desc = action.get('desc', '无描述')
+                # 限制描述长度
+                if len(desc) > 120:
+                    desc = desc[:120] + "..."
+                actions_text.append(f"**{name}**: {desc}")
+            
+            # 限制字段总长度
+            actions_value = "\n".join(actions_text)
+            if len(actions_value) > 1000:
+                actions_value = actions_value[:1000] + "..."
+            
+            if actions_text:
+                embed.add_field(
+                    name="攻击动作",
+                    value=actions_value,
+                    inline=False
+                )
+        
+        # 传奇动作
+        if monster_data.get('legendary_actions'):
+            legendary_text = []
+            for action in monster_data['legendary_actions']:
+                name = action['name']
+                desc = action.get('desc', '无描述')
+                # 限制描述长度
+                if len(desc) > 80:
+                    desc = desc[:80] + "..."
+                legendary_text.append(f"**{name}**: {desc}")
+            
+            # 限制字段总长度
+            legendary_value = "\n".join(legendary_text)
+            if len(legendary_value) > 1000:
+                legendary_value = legendary_value[:1000] + "..."
+            
+            if legendary_text:
+                embed.add_field(
+                    name="传奇动作",
+                    value=legendary_value,
+                    inline=False
+                )
+        
+        # 反应动作
+        if monster_data.get('reactions'):
+            reactions_text = []
+            for reaction in monster_data['reactions']:
+                name = reaction['name']
+                desc = reaction.get('desc', '无描述')
+                # 限制描述长度
+                if len(desc) > 80:
+                    desc = desc[:80] + "..."
+                reactions_text.append(f"**{name}**: {desc}")
+            
+            # 限制字段总长度
+            reactions_value = "\n".join(reactions_text)
+            if len(reactions_value) > 1000:
+                reactions_value = reactions_value[:1000] + "..."
+            
+            if reactions_text:
+                embed.add_field(
+                    name="反应动作",
+                    value=reactions_value,
+                    inline=False
+                )
+        
+        embed.set_footer(text="数据来源: D&D 5e SRD API")
+        return embed
+    
     @discord.app_commands.command(name="monster", description="查询D&D 5e怪物信息")
     @discord.app_commands.describe(name="怪物名称（英文）")
     async def monster(self, interaction: discord.Interaction, name: str):
@@ -207,55 +427,15 @@ class QueryCommands(commands.Cog):
                     description=f"未找到名为 `{name}` 的怪物。请检查拼写或尝试其他关键词。",
                     color=0xFF0000
                 )
+                embed.add_field(
+                    name="提示",
+                    value="• 请使用英文名称\n• 检查拼写是否正确\n• 尝试使用不同的关键词",
+                    inline=False
+                )
                 await interaction.followup.send(embed=embed)
                 return
             
-            # 简化的怪物信息展示
-            embed = discord.Embed(
-                title=f"🐉 {monster_data['name']}",
-                description=f"{monster_data['size']} {monster_data['type']}, {monster_data['alignment']}",
-                color=0xDC143C
-            )
-            
-            # 基本属性
-            ac_info = f"{monster_data['armor_class'][0]['value']}"
-            embed.add_field(
-                name="基本信息",
-                value=(
-                    f"**AC**: {ac_info}\n"
-                    f"**HP**: {monster_data['hit_points']} ({monster_data['hit_points_roll']})\n"
-                    f"**CR**: {monster_data['challenge_rating']}\n"
-                    f"**XP**: {monster_data['xp']:,}"
-                ),
-                inline=True
-            )
-            
-            # 属性值
-            embed.add_field(
-                name="属性",
-                value=(
-                    f"**STR**: {monster_data['strength']}\n"
-                    f"**DEX**: {monster_data['dexterity']}\n"
-                    f"**CON**: {monster_data['constitution']}\n"
-                    f"**INT**: {monster_data['intelligence']}\n"
-                    f"**WIS**: {monster_data['wisdom']}\n"
-                    f"**CHA**: {monster_data['charisma']}"
-                ),
-                inline=True
-            )
-            
-            # 速度
-            speed_info = []
-            for speed_type, speed_value in monster_data['speed'].items():
-                speed_info.append(f"{speed_type}: {speed_value}")
-            
-            embed.add_field(
-                name="速度",
-                value="\n".join(speed_info),
-                inline=True
-            )
-            
-            embed.set_footer(text="数据来源: D&D 5e SRD API")
+            embed = self._format_monster_embed(monster_data)
             await interaction.followup.send(embed=embed)
             
         except Exception as e:
@@ -268,6 +448,11 @@ class QueryCommands(commands.Cog):
                         title="❌ 查询失败",
                         description="查询过程中发生网络错误，请稍后重试。",
                         color=0xFF0000
+                    )
+                    embed.add_field(
+                        name="可能的原因",
+                        value="• 网络连接问题\n• API服务临时不可用\n• 代理配置问题",
+                        inline=False
                     )
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:

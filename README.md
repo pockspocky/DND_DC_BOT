@@ -1,6 +1,6 @@
 # DND_DC_BOT - 龙与地下城Discord机器人
 
-![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.4-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络问题-修复中-orange)
+![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.5-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络问题-修复中-orange)
 
 一个专为龙与地下城(D&D)游戏设计的Discord机器人，旨在为玩家和DM提供便捷的游戏辅助功能。
 
@@ -41,7 +41,7 @@
 
 ### 查询系统 ✅
 - ✅ **法术查询**: `/spell fireball` - 完整的法术信息
-- ✅ **怪物查询**: `/monster goblin` - 增强版本，包含攻击、传奇动作、先攻、豁免、特殊能力等
+- ✅ **怪物查询**: `/monster goblin` - 增强版本，包含攻击、传奇动作、先攻、豁免、特殊能力等，超长信息自动Thread展开
 - ✅ **技能查询**: `/skill perception` - 技能说明和关联属性
 
 ## 🎲 主要功能
@@ -357,6 +357,16 @@ lsof -i :7890
 
 ## 📝 更新日志
 
+### v1.2.5 (2025-07-03) 🎯
+- **智能Thread展示**: 怪物查询新增智能长度检测
+  - 超过750字符自动创建Thread分拆显示
+  - 主消息显示核心数据，Thread中按类别详细展开
+  - 高级怪物（如成年黑龙）自动触发Thread展示
+  - 分组显示：基本信息、技能防御、特殊能力、攻击动作、传奇动作等
+  - 彩色分类标题，提升阅读体验
+- **用户体验优化**: 解决长信息难以阅读的问题
+- **自动归档**: Thread设置24小时后自动归档，保持频道整洁
+
 ### v1.2.4 (2025-07-03) 🚀
 - **怪物查询增强**: 完全重写怪物查询功能，新增：
   - 攻击动作和伤害信息
@@ -419,4 +429,4 @@ lsof -i :7890
 - Discord机器人框架搭建
 
 ---
-*最后更新: 2025年7月3日 - v1.2.4发布，完全增强怪物查询功能*
+*最后更新: 2025年7月3日 - v1.2.5发布，智能Thread展示优化超长怪物信息*

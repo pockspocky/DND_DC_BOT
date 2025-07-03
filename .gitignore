@@ -1,7 +1,9 @@
 # 环境变量文件
 .env
+.env.*
 .env.local
 .env.*.local
+.env.backup
 
 # Python编译文件
 __pycache__/

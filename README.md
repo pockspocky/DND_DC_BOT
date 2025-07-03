@@ -218,6 +218,7 @@ HTTP_PROXY=http://127.0.0.1:7890 HTTPS_PROXY=http://127.0.0.1:7890 python3 main.
 - 如果你的网络环境需要代理访问Discord，请使用方法2或方法3
 - 如果遇到连接问题，请查看[故障排除指南](docs/troubleshooting.md)
 - 确保代理服务（如ClashX）正在运行并监听7890端口
+- **安全提醒**：请查看[安全配置指南](docs/security_guide.md)，避免敏感信息泄露
 
 ## 📝 待办事项
 

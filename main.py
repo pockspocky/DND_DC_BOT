@@ -17,12 +17,11 @@ PROXY_URL = os.getenv('PROXY_URL')  # 例如: http://127.0.0.1:7890
 original_http_proxy = os.environ.get('HTTP_PROXY')
 original_https_proxy = os.environ.get('HTTPS_PROXY')
 
-# 如果设置了代理，只为特定服务配置环境变量
+# 如果设置了代理，为Discord连接配置环境变量
 if PROXY_URL:
-    # 暂时不设置全局代理，避免影响Discord连接
-    # os.environ['HTTP_PROXY'] = PROXY_URL
-    # os.environ['HTTPS_PROXY'] = PROXY_URL
-    pass
+    os.environ['HTTP_PROXY'] = PROXY_URL
+    os.environ['HTTPS_PROXY'] = PROXY_URL
+    print(f"为Discord连接设置代理环境变量: {PROXY_URL}")  # 使用print，logger还未配置
 
 # 配置日志
 logging.basicConfig(
@@ -55,8 +54,7 @@ class DNDBot(commands.Bot):
             command_prefix=os.getenv('PREFIX', '!'),
             intents=intents,
             help_command=None,  # 禁用默认帮助命令，后续自定义
-            # 暂时不使用代理，避免连接问题
-            # proxy=PROXY_URL if PROXY_URL else None
+            proxy=PROXY_URL if PROXY_URL else None
         )
         
     async def setup_hook(self):
@@ -104,6 +102,14 @@ class DNDBot(commands.Bot):
         logger.info(f'{self.user} 已成功登录!')
         logger.info(f'机器人ID: {self.user.id}')
         logger.info(f'连接到 {len(self.guilds)} 个服务器')
+        
+        # Discord连接成功后，清理全局代理设置（避免影响D&D API）
+        if PROXY_URL and os.environ.get('HTTP_PROXY'):
+            logger.info("Discord连接成功，清理全局代理设置以优化D&D API连接")
+            if 'HTTP_PROXY' in os.environ:
+                del os.environ['HTTP_PROXY']
+            if 'HTTPS_PROXY' in os.environ:
+                del os.environ['HTTPS_PROXY']
         
         # 同步所有服务器到数据库
         for guild in self.guilds:

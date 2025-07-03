@@ -1,12 +1,36 @@
 # DND_DC_BOT - 龙与地下城Discord机器人
 
-![Status](https://img.shields.io/badge/状态-正常运行-brightgreen) ![Version](https://img.shields.io/badge/版本-v1.2.1-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Tests](https://img.shields.io/badge/测试-通过-success)
+![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.3-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络问题-修复中-orange)
 
 一个专为龙与地下城(D&D)游戏设计的Discord机器人，旨在为玩家和DM提供便捷的游戏辅助功能。
 
 ## 🚀 快速开始
 
 机器人已完成核心功能开发，支持完整的D&D游戏辅助：
+
+### ⚠️ 网络环境配置
+如果你的网络环境需要代理才能访问Discord：
+1. **编辑`.env`文件**：确保包含正确的代理设置
+   ```env
+   PROXY_URL=http://127.0.0.1:7890
+   ```
+
+2. **检查网络连接**（推荐）：
+   ```bash
+   python3 check_connection.py
+   ```
+
+3. **启动机器人**：
+   ```bash
+   # 方法1: 直接启动
+   python3 main.py
+   
+   # 方法2: 使用启动脚本（推荐，解决连接问题）
+   chmod +x start_bot_with_proxy.sh
+   ./start_bot_with_proxy.sh
+   ```
+
+4. **故障排除**：如果遇到连接问题，请查看[故障排除指南](docs/troubleshooting.md)
 
 ### 骰子系统 ✅
 - ✅ **基础投掷**: `/roll dice:d20`
@@ -180,8 +204,20 @@ PREFIX=/
 
 4. 运行机器人
 ```bash
-python main.py
+# 方法1: 直接启动（适用于大部分情况）
+python3 main.py
+
+# 方法2: 使用启动脚本（解决代理连接问题）
+./start_bot_with_proxy.sh
+
+# 方法3: 手动设置环境变量启动
+HTTP_PROXY=http://127.0.0.1:7890 HTTPS_PROXY=http://127.0.0.1:7890 python3 main.py
 ```
+
+### ⚠️ 重要提示
+- 如果你的网络环境需要代理访问Discord，请使用方法2或方法3
+- 如果遇到连接问题，请查看[故障排除指南](docs/troubleshooting.md)
+- 确保代理服务（如ClashX）正在运行并监听7890端口
 
 ## 📝 待办事项
 
@@ -218,6 +254,32 @@ python main.py
 ## 🤝 贡献指南
 
 欢迎提交Issue和Pull Request来帮助改进这个项目！
+
+## 🌐 网络连接问题解决
+
+### 常见连接错误
+如果遇到以下错误：
+- `Connection timeout to host https://discord.com`
+- `Cannot connect to host discord.com:443`
+- `Cannot connect to host gateway.discord.gg:443`
+
+### 快速解决方案
+1. **检查代理设置**: 确保`.env`文件包含正确的代理配置
+2. **使用启动脚本**: `./start_bot_with_proxy.sh`
+3. **验证代理服务**: 确保ClashX或其他代理软件正在运行
+4. **检查端口**: 确认代理监听在127.0.0.1:7890
+
+### 连接状态检查
+```bash
+# 使用内置检查脚本（推荐）
+python3 check_connection.py
+
+# 手动检查代理
+curl --proxy http://127.0.0.1:7890 https://discord.com/api/v10/gateway
+
+# 检查端口占用
+lsof -i :7890
+```
 
 ## 📖 API文档
 
@@ -275,7 +337,36 @@ python main.py
 
 本机器人旨在为D&D玩家群体提供一个功能完整、易用的Discord游戏辅助工具，让线上D&D游戏体验更加流畅和有趣。无论是新手玩家还是经验丰富的DM，都能从这个机器人中获得帮助。
 
+## 🔧 当前状态
+
+### ✅ 已完成功能
+- **完整的骰子系统**: 支持所有D&D骰子类型和复杂投掷规则
+- **查询系统**: 法术、怪物、技能查询功能完整可用
+- **数据持久化**: SQLite数据库稳定运行
+- **API集成**: D&D 5e SRD API完全集成并优化
+
+### ⚠️ 已知问题
+- **Discord连接**: 在某些网络环境中可能需要特殊配置
+- **代理设置**: WebSocket连接可能需要额外的代理配置
+
+### 🔄 解决方案
+1. **使用启动脚本**: `./start_bot_with_proxy.sh` (已包含环境变量配置)
+2. **查看故障排除指南**: [`docs/troubleshooting.md`](docs/troubleshooting.md)
+3. **网络诊断**: 机器人启动前会自动检测网络连接状态
+
 ## 📝 更新日志
+
+### v1.2.3 (2025-07-03) 🔧
+- **网络配置优化**: 改进代理配置处理机制
+- **启动脚本**: 添加专用启动脚本解决连接问题
+- **故障排除增强**: 完善WebSocket连接诊断
+- **用户体验**: 提供多种启动方式和详细指导
+
+### v1.2.2 (2025-07-03) ✅
+- **网络连接修复**: 解决Discord连接超时问题
+- **智能代理配置**: Discord使用代理，D&D API直连
+- **连接诊断**: 添加自动网络诊断功能
+- **环境适配**: 适配不同网络环境的连接需求
 
 ### v1.2.1 (2025-07-03) ✅
 - **紧急修复**: 修复代理配置导致的Discord连接问题
@@ -313,4 +404,4 @@ python main.py
 - Discord机器人框架搭建
 
 ---
-*最后更新: 2025年7月3日 - v1.2.1发布，修复代理连接问题*
+*最后更新: 2025年7月3日 - v1.2.3发布，优化网络配置和启动方式*

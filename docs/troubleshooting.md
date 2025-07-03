@@ -42,7 +42,39 @@
    - 不要设置全局代理环境变量
    - 考虑使用不同的配置文件
 
-#### 问题2: API查询超时
+#### 问题2: Discord连接超时
+**错误信息**: `Connection timeout to host https://discord.com/api/v10/users/@me`
+
+**原因**: 网络环境限制，无法直接访问Discord API
+
+**解决方案**:
+1. **使用代理**: 确保.env文件中有正确的代理设置
+   ```env
+   PROXY_URL=http://127.0.0.1:7890
+   ```
+
+2. **验证连接**: 运行诊断脚本
+   ```bash
+   python3 -c "
+   import asyncio, aiohttp, os
+   from dotenv import load_dotenv
+   
+   load_dotenv()
+   async def test():
+       proxy = os.getenv('PROXY_URL')
+       async with aiohttp.ClientSession() as session:
+           async with session.get('https://discord.com/api/v10/gateway', proxy=proxy) as r:
+               print('✅ Discord连接成功' if r.status == 200 else '❌ 连接失败')
+   asyncio.run(test())
+   "
+   ```
+
+3. **网络环境方案**:
+   - 检查代理服务是否正常运行
+   - 尝试使用其他网络环境（如移动热点）
+   - 确认防火墙没有阻止Discord连接
+
+#### 问题3: API查询超时
 **错误信息**: API查询命令无响应或超时
 
 **解决方案**:
@@ -50,7 +82,7 @@
 2. 验证D&D 5e API服务状态
 3. 清除查询缓存: `/clearquerycache` (仅管理员)
 
-#### 问题3: 法术/怪物未找到
+#### 问题4: 法术/怪物未找到
 **错误信息**: "未找到法术/怪物"
 
 **解决方案**:

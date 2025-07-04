@@ -1,16 +1,15 @@
 """
-D&D 5e查询命令
-实现法术、怪物、技能的Discord斜杠命令
+D&D 5e查询命令系统
+简化的法术、怪物、技能查询功能
 """
-
 import discord
 from discord.ext import commands
-from typing import Optional, Dict, List
+from typing import Optional, Dict
 import logging
 from .api_client import DnDAPIClient
 
 class QueryCommands(commands.Cog):
-    """查询命令Cog"""
+    """D&D查询命令组 - 法术、怪物、技能查询"""
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -18,12 +17,12 @@ class QueryCommands(commands.Cog):
         self.logger = logging.getLogger(__name__)
     
     async def cog_load(self):
-        """Cog加载时启动API客户端"""
+        """启动API客户端"""
         await self.api_client.start()
         self.logger.info("查询命令模块已加载")
     
     async def cog_unload(self):
-        """Cog卸载时关闭API客户端"""
+        """关闭API客户端"""
         await self.api_client.close()
         self.logger.info("查询命令模块已卸载")
     
@@ -148,49 +147,19 @@ class QueryCommands(commands.Cog):
             embed = self._format_spell_embed(spell_data)
             await interaction.followup.send(embed=embed)
             
-        except discord.ConnectionClosed:
-            # Discord连接问题，使用fallback响应
-            if not interaction.response.is_done():
-                await interaction.response.send_message("⚠️ 网络连接问题，正在重试查询...", ephemeral=True)
-            try:
-                spell_data = await self.api_client.get_spell(name)
-                if spell_data:
-                    embed = self._format_spell_embed(spell_data)
-                    await interaction.edit_original_response(content="", embed=embed)
-                else:
-                    await interaction.edit_original_response(content="❌ 未找到该法术")
-            except Exception as retry_error:
-                self.logger.error(f"重试法术查询失败: {retry_error}")
-                await interaction.edit_original_response(content="❌ 查询失败，请稍后重试")
-        
         except Exception as e:
             self.logger.error(f"法术查询错误: {e}")
-            
-            # 安全的错误处理 - 避免Discord连接问题导致的二次错误
+            # 简化的错误处理
             try:
-                if not interaction.response.is_done():
-                    embed = discord.Embed(
-                        title="❌ 查询失败",
-                        description="查询过程中发生网络错误，请稍后重试。",
-                        color=0xFF0000
-                    )
-                    embed.add_field(
-                        name="可能的原因",
-                        value="• 网络连接问题\n• API服务临时不可用\n• 代理配置问题",
-                        inline=False
-                    )
-                    await interaction.response.send_message(embed=embed, ephemeral=True)
-                else:
-                    embed = discord.Embed(
-                        title="❌ 查询失败",
-                        description="查询过程中发生错误，请稍后重试。",
-                        color=0xFF0000
-                    )
-                    await interaction.followup.send(embed=embed)
-            except Exception as response_error:
-                # 如果连Discord响应都失败了，记录错误但不再尝试响应
-                self.logger.error(f"Discord响应失败: {response_error}")
-                # 静默处理，避免进一步崩溃
+                error_embed = discord.Embed(
+                    title="❌ 查询失败",
+                    description="查询过程中发生错误，请稍后重试",
+                    color=0xFF0000
+                )
+                await interaction.followup.send(embed=error_embed, ephemeral=True)
+            except Exception:
+                # 静默处理，避免进一步错误
+                pass
     
     def _format_monster_embed(self, monster_data: Dict) -> discord.Embed:
         """格式化怪物信息为Discord嵌入"""
@@ -431,6 +400,20 @@ class QueryCommands(commands.Cog):
     async def _send_monster_in_thread(self, interaction: discord.Interaction, monster_data: Dict, monster_name: str):
         """在Thread中分拆发送怪物信息"""
         try:
+            # 检查是否在服务器频道中（Thread只能在服务器频道中创建）
+            if interaction.guild is None:
+                self.logger.info(f"用户在私信中查询怪物 {monster_data['name']}，使用普通嵌入消息")
+                embed = self._format_monster_embed(monster_data)
+                await interaction.edit_original_response(embed=embed)
+                return
+            
+            # 检查机器人是否有创建Thread的权限
+            if not interaction.app_permissions.create_public_threads:
+                self.logger.warning("机器人缺少创建Thread权限，使用普通嵌入消息")
+                embed = self._format_monster_embed(monster_data)
+                await interaction.edit_original_response(embed=embed)
+                return
+            
             # 先发送一个简要的回复消息
             summary_embed = discord.Embed(
                 title=f"🐉 {monster_data['name']}",
@@ -458,15 +441,18 @@ class QueryCommands(commands.Cog):
             
             summary_embed.set_footer(text="详细信息请查看下方Thread")
             
-            # 发送摘要消息
-            response_message = await interaction.followup.send(embed=summary_embed)
+            # 使用edit_original_response发送摘要消息，这样消息会有完整的guild信息
+            await interaction.edit_original_response(embed=summary_embed)
             
-            # 检查消息是否成功发送，然后创建Thread
-            if response_message is None:
-                raise Exception("发送摘要消息失败")
+            # 等待一小段时间确保消息完全发送
+            import asyncio
+            await asyncio.sleep(0.5)
+            
+            # 获取原始响应消息，这个消息有完整的guild信息
+            original_message = await interaction.original_response()
             
             # 创建Thread
-            thread = await response_message.create_thread(
+            thread = await original_message.create_thread(
                 name=f"🐉 {monster_data['name']} - 详细信息",
                 auto_archive_duration=1440  # 24小时后自动归档
             )
@@ -474,11 +460,19 @@ class QueryCommands(commands.Cog):
             # 在Thread中发送详细信息
             await self._send_detailed_monster_info(thread, monster_data)
             
+        except discord.Forbidden:
+            self.logger.error("创建Thread失败: 权限不足")
+            embed = self._format_monster_embed(monster_data)
+            await interaction.edit_original_response(embed=embed)
+        except discord.HTTPException as e:
+            self.logger.error(f"创建Thread失败: Discord API错误 - {e}")
+            embed = self._format_monster_embed(monster_data)
+            await interaction.edit_original_response(embed=embed)
         except Exception as e:
             self.logger.error(f"创建Thread失败: {e}")
             # 如果Thread创建失败，回退到普通嵌入消息
             embed = self._format_monster_embed(monster_data)
-            await interaction.followup.send(embed=embed)
+            await interaction.edit_original_response(embed=embed)
     
     async def _send_detailed_monster_info(self, thread, monster_data: Dict):
         """在Thread中发送详细的怪物信息"""

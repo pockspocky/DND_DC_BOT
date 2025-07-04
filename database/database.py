@@ -1,27 +1,20 @@
 """
-数据库管理器
-处理数据库连接、初始化和基本操作
+D&D机器人数据库管理器
+简化的异步数据库操作封装
 """
-import os
 import asyncio
 import aiosqlite
 import logging
-from typing import Optional, List, Dict, Any, Union
-from datetime import datetime
+from typing import Optional, List, Dict
 from .models import DatabaseModels
 
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
-    """数据库管理器类"""
+    """异步数据库管理器 - 处理所有数据库操作"""
     
     def __init__(self, db_path: str = "dnd_bot.db"):
-        """
-        初始化数据库管理器
-        
-        Args:
-            db_path: 数据库文件路径
-        """
+        """初始化数据库管理器"""
         self.db_path = db_path
         self.connection: Optional[aiosqlite.Connection] = None
         self._lock = asyncio.Lock()
@@ -43,18 +36,13 @@ class DatabaseManager:
                 logger.info("已断开数据库连接")
     
     async def execute(self, query: str, params: tuple = ()) -> aiosqlite.Cursor:
-        """
-        执行SQL查询
-        
-        Args:
-            query: SQL查询语句
-            params: 查询参数
-            
-        Returns:
-            查询结果游标
-        """
+        """执行SQL查询"""
         if not self.connection:
             await self.connect()
+        
+        # 确保连接存在
+        if not self.connection:
+            raise RuntimeError("数据库连接失败")
         
         try:
             cursor = await self.connection.execute(query, params)

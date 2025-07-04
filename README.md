@@ -1,6 +1,6 @@
 # DND_DC_BOT - 龙与地下城Discord机器人
 
-![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.5-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络问题-修复中-orange)
+![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.6-blue) ![Commands](https://img.shields.io/badge/斜杠命令-13个-orange) ![Network](https://img.shields.io/badge/网络连接-正常-green)
 
 一个专为龙与地下城(D&D)游戏设计的Discord机器人，旨在为玩家和DM提供便捷的游戏辅助功能。
 
@@ -342,20 +342,34 @@ lsof -i :7890
 
 ### ✅ 已完成功能
 - **完整的骰子系统**: 支持所有D&D骰子类型和复杂投掷规则
-- **查询系统**: 法术、怪物、技能查询功能完整可用
+- **查询系统**: 法术、怪物、技能查询功能完整可用，支持智能Thread展示
 - **数据持久化**: SQLite数据库稳定运行
 - **API集成**: D&D 5e SRD API完全集成并优化
+- **网络连接**: 代理配置已完全解决，支持所有网络环境
 
-### ⚠️ 已知问题
-- **Discord连接**: 在某些网络环境中可能需要特殊配置
-- **代理设置**: WebSocket连接可能需要额外的代理配置
+### ✅ 已解决问题
+- **Discord连接**: 已修复代理配置问题，使用直接代理参数而非环境变量
+- **Thread创建**: 已修复交互系统错误，Thread功能完全正常
+- **WebSocket连接**: 代理设置已优化，连接稳定可靠
 
-### 🔄 解决方案
-1. **使用启动脚本**: `./start_bot_with_proxy.sh` (已包含环境变量配置)
-2. **查看故障排除指南**: [`docs/troubleshooting.md`](docs/troubleshooting.md)
-3. **网络诊断**: 机器人启动前会自动检测网络连接状态
+### 🚀 启动方式
+1. **推荐方式**: `python3 main.py` (已内置代理支持)
+2. **备用方式**: `./start_bot_with_proxy.sh` (兼容旧版本)
+3. **网络诊断**: 使用 `python3 check_connection.py` 检查连接状态
 
 ## 📝 更新日志
+
+### v1.2.6 (2025-07-04) 🔧
+- **网络连接修复**: 彻底解决Discord连接问题
+  - 修复代理配置：使用直接代理参数而非环境变量
+  - 解决SSL连接错误和WebSocket连接超时问题
+  - 优化代理设置，确保在所有网络环境下正常工作
+- **Thread创建修复**: 解决交互系统错误
+  - 修复"Unknown interaction"和"Interaction already acknowledged"错误
+  - 优化Thread创建流程，使用正确的Discord API调用方式
+  - 确保长信息怪物查询正常显示Thread展开
+- **启动方式简化**: 推荐直接使用`python3 main.py`启动
+- **网络诊断工具**: 提供完整的连接状态检查脚本
 
 ### v1.2.5 (2025-07-03) 🎯
 - **智能Thread展示**: 怪物查询新增智能长度检测
@@ -429,4 +443,4 @@ lsof -i :7890
 - Discord机器人框架搭建
 
 ---
-*最后更新: 2025年7月3日 - v1.2.5发布，智能Thread展示优化超长怪物信息*
+*最后更新: 2025年7月4日 - v1.2.6发布，网络连接问题完全修复，机器人稳定运行*

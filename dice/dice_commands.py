@@ -1,6 +1,6 @@
 """
-骰子Discord命令系统
-实现D&D骰子相关的Discord斜杠命令
+D&D骰子命令系统
+简化的骰子功能实现
 """
 import discord
 from discord import app_commands
@@ -13,7 +13,7 @@ from .dice_parser import DiceParser
 logger = logging.getLogger(__name__)
 
 class DiceCommands(commands.Cog):
-    """骰子命令组"""
+    """骰子命令组 - 实现所有D&D骰子功能"""
     
     def __init__(self, bot):
         self.bot = bot
@@ -114,69 +114,35 @@ class DiceCommands(commands.Cog):
                               advantage: str = "正常", count: Optional[int] = None,
                               keep_highest: Optional[int] = None,
                               drop_lowest: Optional[int] = None) -> str:
-        """构建最终的骰子表达式"""
+        """构建骰子表达式"""
         try:
-            # 清理骰子表达式
+            # 标准化骰子格式
             dice = dice.strip().lower()
             if not dice.startswith('d'):
-                if dice.startswith('1d'):
-                    dice = dice[1:]  # 去掉开头的1
-                elif dice.isdigit():
-                    dice = f"d{dice}"  # 纯数字转换为dN格式
-                else:
-                    # 可能是完整表达式，直接返回
-                    return dice
+                if dice.isdigit():
+                    dice = f"d{dice}"
+                elif dice.startswith('1d'):
+                    dice = dice[1:]
             
-            # 处理优势/劣势 - 这是特殊情况，会覆盖部分参数
+            # 优势/劣势处理
             if advantage == "优势":
-                # 优势骰：2d20kh1 + 修正值
-                if dice == "d20" or dice == "1d20":
-                    expression = "2d20kh1"
-                else:
-                    # 非d20的优势处理：投掷2个该骰子，保留最高
-                    expression = f"2{dice}kh1"
-                
-                # 添加修正值
-                if modifier is not None:
-                    expression += f"{modifier:+d}"
-                
-                return expression
-                
+                base = "2d20kh1" if dice in ["d20", "1d20"] else f"2{dice}kh1"
             elif advantage == "劣势":
-                # 劣势骰：2d20kl1 + 修正值
-                if dice == "d20" or dice == "1d20":
-                    expression = "2d20kl1"
-                else:
-                    # 非d20的劣势处理：投掷2个该骰子，保留最低
-                    expression = f"2{dice}kl1"
-                
-                # 添加修正值
-                if modifier is not None:
-                    expression += f"{modifier:+d}"
-                
-                return expression
+                base = "2d20kl1" if dice in ["d20", "1d20"] else f"2{dice}kl1"
+            else:
+                # 正常投掷
+                base = f"{count or ''}{dice}"
+                # 添加保留/丢弃规则
+                if keep_highest:
+                    base += f"kh{keep_highest}"
+                elif drop_lowest:
+                    base += f"dl{drop_lowest}"
             
-            # 正常情况：构建标准表达式
-            expression = ""
+            # 添加修正值
+            if modifier:
+                base += f"{modifier:+d}"
             
-            # 骰子数量
-            if count is not None and count > 1:
-                expression += f"{count}"
-            
-            # 基础骰子
-            expression += dice
-            
-            # 保留/丢弃规则
-            if keep_highest is not None:
-                expression += f"kh{keep_highest}"
-            elif drop_lowest is not None:
-                expression += f"dl{drop_lowest}"
-            
-            # 修正值
-            if modifier is not None:
-                expression += f"{modifier:+d}"
-            
-            return expression
+            return base
             
         except Exception as e:
             logger.error(f"构建骰子表达式失败: {e}")

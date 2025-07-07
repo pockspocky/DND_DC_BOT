@@ -292,15 +292,15 @@ class QueryCommands(commands.Cog):
             for ability in monster_data['special_abilities']:
                 name = ability['name']
                 desc = ability.get('desc', '无描述')
-                # 限制描述长度
-                if len(desc) > 80:
-                    desc = desc[:80] + "..."
+                # 更合理的描述长度限制
+                if len(desc) > 200:
+                    desc = desc[:200] + "..."
                 abilities_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度
+            # 限制字段总长度 (Discord限制是1024字符)
             abilities_value = "\n".join(abilities_text)
-            if len(abilities_value) > 1000:
-                abilities_value = abilities_value[:1000] + "..."
+            if len(abilities_value) > 1020:
+                abilities_value = abilities_value[:1020] + "..."
             
             if abilities_text:
                 embed.add_field(
@@ -315,15 +315,15 @@ class QueryCommands(commands.Cog):
             for action in monster_data['actions']:
                 name = action['name']
                 desc = action.get('desc', '无描述')
-                # 限制描述长度
-                if len(desc) > 120:
-                    desc = desc[:120] + "..."
+                # 更合理的描述长度限制
+                if len(desc) > 250:
+                    desc = desc[:250] + "..."
                 actions_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度
+            # 限制字段总长度 (Discord限制是1024字符)
             actions_value = "\n".join(actions_text)
-            if len(actions_value) > 1000:
-                actions_value = actions_value[:1000] + "..."
+            if len(actions_value) > 1020:
+                actions_value = actions_value[:1020] + "..."
             
             if actions_text:
                 embed.add_field(
@@ -338,15 +338,15 @@ class QueryCommands(commands.Cog):
             for action in monster_data['legendary_actions']:
                 name = action['name']
                 desc = action.get('desc', '无描述')
-                # 限制描述长度
-                if len(desc) > 80:
-                    desc = desc[:80] + "..."
+                # 更合理的描述长度限制
+                if len(desc) > 200:
+                    desc = desc[:200] + "..."
                 legendary_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度
+            # 限制字段总长度 (Discord限制是1024字符)
             legendary_value = "\n".join(legendary_text)
-            if len(legendary_value) > 1000:
-                legendary_value = legendary_value[:1000] + "..."
+            if len(legendary_value) > 1020:
+                legendary_value = legendary_value[:1020] + "..."
             
             if legendary_text:
                 embed.add_field(
@@ -361,15 +361,15 @@ class QueryCommands(commands.Cog):
             for reaction in monster_data['reactions']:
                 name = reaction['name']
                 desc = reaction.get('desc', '无描述')
-                # 限制描述长度
-                if len(desc) > 80:
-                    desc = desc[:80] + "..."
+                # 更合理的描述长度限制
+                if len(desc) > 200:
+                    desc = desc[:200] + "..."
                 reactions_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度
+            # 限制字段总长度 (Discord限制是1024字符)
             reactions_value = "\n".join(reactions_text)
-            if len(reactions_value) > 1000:
-                reactions_value = reactions_value[:1000] + "..."
+            if len(reactions_value) > 1020:
+                reactions_value = reactions_value[:1020] + "..."
             
             if reactions_text:
                 embed.add_field(

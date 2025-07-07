@@ -519,7 +519,7 @@ class DiceCommands(commands.Cog):
         embed.add_field(
             name="📋 基础命令",
             value=(
-                "`/r` - 投掷骰子 (可选参数见下方)\n"
+                "`/roll` - 投掷骰子 (可选参数见下方)\n"
                 "`/check <修正值>` - 技能检定\n"
                 "`/save <类型> <修正值>` - 豁免检定\n"
                 "`/attack <加值> <伤害骰>` - 攻击检定\n"
@@ -529,7 +529,7 @@ class DiceCommands(commands.Cog):
         )
         
         embed.add_field(
-            name="🎲 /r 参数",
+            name="🎲 /roll 参数",
             value=(
                 "`dice`: 基础骰子 (如: d20, d6, d100)\n"
                 "`modifier`: 修正值 (可选)\n"
@@ -542,14 +542,14 @@ class DiceCommands(commands.Cog):
         )
         
         embed.add_field(
-            name="🎯 /r 使用示例",
+            name="🎯 /roll 使用示例",
             value=(
-                "`/r dice:d20` - 投掷1个20面骰\n"
-                "`/r dice:d20 modifier:5` - 投掷d20+5\n"
-                "`/r dice:d20 advantage:优势` - 优势骰\n"
-                "`/r dice:d6 count:3` - 投掷3d6\n"
-                "`/r dice:d6 count:4 drop_lowest:1` - 4d6去最低\n"
-                "`/r dice:d20 count:2 keep_highest:1` - 2d20保留最高"
+                "`/roll dice:d20` - 投掷1个20面骰\n"
+                "`/roll dice:d20 modifier:5` - 投掷d20+5\n"
+                "`/roll dice:d20 advantage:优势` - 优势骰\n"
+                "`/roll dice:d6 count:3` - 投掷3d6\n"
+                "`/roll dice:d6 count:4 drop_lowest:1` - 4d6去最低\n"
+                "`/roll dice:d20 count:2 keep_highest:1` - 2d20保留最高"
             ),
             inline=False
         )

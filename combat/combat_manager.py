@@ -1,0 +1,399 @@
+"""战斗管理器 - 负责D&D战斗的核心逻辑管理"""
+import discord
+from typing import Optional, List, Dict, Any
+from database import db_manager
+from dice.dice_roller import DiceRoller
+import logging
+
+logger = logging.getLogger(__name__)
+
+class CombatParticipant:
+    """战斗参与者数据类"""
+    def __init__(self, data: Dict[str, Any]):
+        self.id = data.get('id')
+        self.name = data.get('name') or ""
+        self.initiative = data.get('initiative') or 0
+        self.current_hp = data.get('current_hp') or 0
+        self.max_hp = data.get('max_hp') or 0
+        self.armor_class = data.get('armor_class', 10)
+        self.is_npc = data.get('is_npc', False)
+        self.position_in_turn = data.get('position_in_turn') or 0
+        
+    @property
+    def hp_percentage(self) -> float:
+        """生命值百分比"""
+        if self.max_hp <= 0:
+            return 0.0
+        return (self.current_hp / self.max_hp) * 100
+    
+    @property
+    def status_icon(self) -> str:
+        """根据生命值返回状态图标"""
+        if self.current_hp <= 0:
+            return "💀"
+        elif self.hp_percentage <= 25:
+            return "🔴"
+        elif self.hp_percentage <= 50:
+            return "🟡"
+        else:
+            return "🟢"
+    
+    @property
+    def type_icon(self) -> str:
+        """角色类型图标"""
+        return "🤖" if self.is_npc else "🎭"
+
+class CombatSession:
+    """战斗会话数据类"""
+    def __init__(self, data: Dict[str, Any]):
+        self.id = data.get('id')
+        self.guild_id = data.get('guild_id')
+        self.channel_id = data.get('channel_id')
+        self.dm_user_id = data.get('dm_user_id')
+        self.name = data.get('name') or ""
+        self.current_turn = data.get('current_turn', 0)
+        self.current_round = data.get('current_round', 1)
+        self.status = data.get('status', 'active')
+        self.participants: List[CombatParticipant] = []
+
+class CombatManager:
+    """战斗管理器主类"""
+    
+    def __init__(self):
+        self.dice_roller = DiceRoller()
+        
+    async def is_dm(self, user: discord.Member) -> bool:
+        """检查用户是否具有DM权限"""
+        dm_roles = ["DM", "dm", "Dm", "dM"]
+        user_roles = [role.name for role in user.roles]
+        has_dm_role = any(role in dm_roles for role in user_roles)
+        has_admin = user.guild_permissions.administrator
+        return has_dm_role or has_admin
+    
+    async def get_active_combat(self, guild_id: int, channel_id: int) -> Optional[CombatSession]:
+        """获取当前频道的活跃战斗"""
+        query = """
+            SELECT * FROM combat_sessions 
+            WHERE guild_id = ? AND channel_id = ? AND status = 'active'
+            ORDER BY created_at DESC LIMIT 1
+        """
+        
+        try:
+            result = await db_manager.fetchone(query, (guild_id, channel_id))
+            if result:
+                combat = CombatSession(dict(result))
+                combat.participants = await self.get_participants(combat.id)
+                return combat
+            return None
+        except Exception as e:
+            logger.error(f"获取活跃战斗失败: {e}")
+            return None
+    
+    async def start_combat(self, guild_id: int, channel_id: int, dm_user_id: int, name: str) -> Optional[CombatSession]:
+        """开始新的战斗会话"""
+        existing_combat = await self.get_active_combat(guild_id, channel_id)
+        if existing_combat:
+            return None
+        
+        query = """
+            INSERT INTO combat_sessions (guild_id, channel_id, dm_user_id, name)
+            VALUES (?, ?, ?, ?)
+        """
+        
+        try:
+            cursor = await db_manager.execute(query, (guild_id, channel_id, dm_user_id, name))
+            session_id = cursor.lastrowid
+            
+            if session_id:
+                await self.log_combat_action(
+                    session_id, 1, 0, "combat_start", "系统", None,
+                    f"战斗 '{name}' 开始", None, None
+                )
+                
+                result = await db_manager.fetchone(
+                    "SELECT * FROM combat_sessions WHERE id = ?", (session_id,)
+                )
+                if result:
+                    return CombatSession(dict(result))
+            return None
+            
+        except Exception as e:
+            logger.error(f"创建战斗会话失败: {e}")
+            return None
+    
+    async def end_combat(self, session_id: int) -> bool:
+        """结束战斗会话"""
+        query = """
+            UPDATE combat_sessions 
+            SET status = 'ended', ended_at = CURRENT_TIMESTAMP 
+            WHERE id = ?
+        """
+        
+        try:
+            await db_manager.execute(query, (session_id,))
+            await self.log_combat_action(
+                session_id, 0, 0, "combat_end", "系统", None,
+                "战斗结束", None, None
+            )
+            return True
+        except Exception as e:
+            logger.error(f"结束战斗失败: {e}")
+            return False
+    
+    async def add_participant(
+        self, session_id: int, name: str, max_hp: int, 
+        initiative: int, ac: int = 10, is_npc: bool = False
+    ) -> Optional[CombatParticipant]:
+        """添加战斗参与者"""
+        try:
+            existing = await db_manager.fetchone(
+                "SELECT id FROM combat_participants WHERE combat_session_id = ? AND name = ?",
+                (session_id, name)
+            )
+            if existing:
+                return None
+            
+            position = await self._calculate_turn_position(session_id, initiative)
+            
+            query = """
+                INSERT INTO combat_participants 
+                (combat_session_id, name, initiative, current_hp, max_hp, armor_class, is_npc, position_in_turn)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            cursor = await db_manager.execute(
+                query, (session_id, name, initiative, max_hp, max_hp, ac, is_npc, position)
+            )
+            participant_id = cursor.lastrowid
+            
+            if participant_id:
+                await self.log_combat_action(
+                    session_id, 1, position, "add_participant", "系统", name,
+                    f"{'NPC' if is_npc else '角色'} {name} 加入战斗 (先攻: {initiative}, 生命值: {max_hp}, 护甲: {ac})",
+                    None, None
+                )
+                
+                await self._reorder_participants(session_id)
+                
+                result = await db_manager.fetchone(
+                    "SELECT * FROM combat_participants WHERE id = ?", (participant_id,)
+                )
+                if result:
+                    return CombatParticipant(dict(result))
+            return None
+            
+        except Exception as e:
+            logger.error(f"添加参与者失败: {e}")
+            return None
+    
+    async def get_participants(self, session_id: int) -> List[CombatParticipant]:
+        """获取战斗参与者列表"""
+        query = """
+            SELECT * FROM combat_participants 
+            WHERE combat_session_id = ? AND is_active = 1
+            ORDER BY position_in_turn
+        """
+        
+        try:
+            results = await db_manager.fetchall(query, (session_id,))
+            return [CombatParticipant(dict(row)) for row in results]
+        except Exception as e:
+            logger.error(f"获取参与者失败: {e}")
+            return []
+    
+    async def next_turn(self, session_id: int) -> Optional[CombatParticipant]:
+        """切换到下一个回合"""
+        combat = await self._get_combat_by_id(session_id)
+        if not combat:
+            return None
+        
+        participants = await self.get_participants(session_id)
+        if not participants:
+            return None
+        
+        next_turn = (combat.current_turn + 1) % len(participants)
+        next_round = combat.current_round
+        
+        if next_turn == 0 and combat.current_turn != 0:
+            next_round += 1
+        
+        query = """
+            UPDATE combat_sessions 
+            SET current_turn = ?, current_round = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """
+        
+        try:
+            await db_manager.execute(query, (next_turn, next_round, session_id))
+            
+            current_participant = participants[next_turn]
+            
+            await self.log_combat_action(
+                session_id, next_round, next_turn, "turn_change", "系统", current_participant.name,
+                f"第{next_round}回合 - {current_participant.name}的回合",
+                None, None
+            )
+            
+            return current_participant
+            
+        except Exception as e:
+            logger.error(f"切换回合失败: {e}")
+            return None
+    
+    async def apply_damage(
+        self, session_id: int, target_name: str, damage: int, 
+        attacker_name: str = "未知", dice_expr: str = None, dice_result: str = None
+    ) -> Optional[CombatParticipant]:
+        """对目标造成伤害"""
+        participant = await self._get_participant_by_name(session_id, target_name)
+        if not participant:
+            return None
+        
+        old_hp = participant.current_hp
+        new_hp = max(0, old_hp - damage)
+        is_death = new_hp == 0 and old_hp > 0
+        
+        query = """
+            UPDATE combat_participants 
+            SET current_hp = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE combat_session_id = ? AND name = ?
+        """
+        
+        try:
+            await db_manager.execute(query, (new_hp, session_id, target_name))
+            
+            action_desc = f"{attacker_name} 对 {target_name} 造成 {damage} 点伤害"
+            if is_death:
+                action_desc += f" - {target_name} 倒下了!"
+            
+            await self.log_combat_action(
+                session_id, participant.position_in_turn, participant.position_in_turn,
+                "damage", attacker_name, target_name, action_desc,
+                dice_expr, dice_result, damage, 0, old_hp, new_hp, False, is_death
+            )
+            
+            participant.current_hp = new_hp
+            return participant
+            
+        except Exception as e:
+            logger.error(f"应用伤害失败: {e}")
+            return None
+    
+    async def apply_healing(
+        self, session_id: int, target_name: str, healing: int,
+        healer_name: str = "未知", dice_expr: str = None, dice_result: str = None
+    ) -> Optional[CombatParticipant]:
+        """对目标进行治疗"""
+        participant = await self._get_participant_by_name(session_id, target_name)
+        if not participant:
+            return None
+        
+        old_hp = participant.current_hp
+        new_hp = min(participant.max_hp, old_hp + healing)
+        actual_healing = new_hp - old_hp
+        
+        query = """
+            UPDATE combat_participants 
+            SET current_hp = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE combat_session_id = ? AND name = ?
+        """
+        
+        try:
+            await db_manager.execute(query, (new_hp, session_id, target_name))
+            
+            await self.log_combat_action(
+                session_id, participant.position_in_turn, participant.position_in_turn,
+                "healing", healer_name, target_name,
+                f"{healer_name} 为 {target_name} 治疗 {actual_healing} 点生命值",
+                dice_expr, dice_result, 0, actual_healing, old_hp, new_hp
+            )
+            
+            participant.current_hp = new_hp
+            return participant
+            
+        except Exception as e:
+            logger.error(f"应用治疗失败: {e}")
+            return None
+    
+    async def log_combat_action(
+        self, session_id: int, round_num: int, turn_order: int,
+        action_type: str, actor_name: str, target_name: Optional[str],
+        description: str, dice_expr: Optional[str] = None, dice_result: Optional[str] = None,
+        damage: int = 0, healing: int = 0, hp_before: Optional[int] = None,
+        hp_after: Optional[int] = None, is_critical: bool = False, is_death: bool = False
+    ) -> bool:
+        """记录战斗行动日志"""
+        query = """
+            INSERT INTO combat_logs 
+            (combat_session_id, round_number, turn_order, action_type, actor_name, target_name,
+             action_description, dice_expression, dice_result, damage_dealt, healing_dealt,
+             hp_before, hp_after, is_critical, is_death)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """
+        
+        try:
+            await db_manager.execute(query, (
+                session_id, round_num, turn_order, action_type, actor_name, target_name,
+                description, dice_expr, dice_result, damage, healing,
+                hp_before, hp_after, is_critical, is_death
+            ))
+            return True
+        except Exception as e:
+            logger.error(f"记录战斗日志失败: {e}")
+            return False
+    
+    async def _calculate_turn_position(self, session_id: int, initiative: int) -> int:
+        """计算新参与者的回合位置"""
+        participants = await self.get_participants(session_id)
+        position = 0
+        for participant in participants:
+            if participant.initiative >= initiative:
+                position += 1
+            else:
+                break
+        return position
+    
+    async def _reorder_participants(self, session_id: int) -> bool:
+        """重新排序参与者的回合位置"""
+        try:
+            participants = await db_manager.fetchall(
+                "SELECT id, initiative FROM combat_participants WHERE combat_session_id = ? ORDER BY initiative DESC, id ASC",
+                (session_id,)
+            )
+            
+            for position, participant in enumerate(participants):
+                await db_manager.execute(
+                    "UPDATE combat_participants SET position_in_turn = ? WHERE id = ?",
+                    (position, participant['id'])
+                )
+            return True
+        except Exception as e:
+            logger.error(f"重新排序参与者失败: {e}")
+            return False
+    
+    async def _get_combat_by_id(self, session_id: int) -> Optional[CombatSession]:
+        """根据ID获取战斗会话"""
+        try:
+            result = await db_manager.fetchone(
+                "SELECT * FROM combat_sessions WHERE id = ?", (session_id,)
+            )
+            if result:
+                return CombatSession(dict(result))
+            return None
+        except Exception as e:
+            logger.error(f"获取战斗会话失败: {e}")
+            return None
+    
+    async def _get_participant_by_name(self, session_id: int, name: str) -> Optional[CombatParticipant]:
+        """根据名字获取参与者"""
+        try:
+            result = await db_manager.fetchone(
+                "SELECT * FROM combat_participants WHERE combat_session_id = ? AND name = ?",
+                (session_id, name)
+            )
+            if result:
+                return CombatParticipant(dict(result))
+            return None
+        except Exception as e:
+            logger.error(f"获取参与者失败: {e}")
+            return None

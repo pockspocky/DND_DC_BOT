@@ -121,7 +121,7 @@ class QueryCommands(commands.Cog):
         embed.set_footer(text="数据来源: D&D 5e SRD API")
         return embed
     
-    @discord.app_commands.command(name="spell", description="查询D&D 5e法术信息")
+    @discord.app_commands.command(name="sp", description="查询D&D 5e法术信息")
     @discord.app_commands.describe(name="法术名称（英文）")
     async def spell(self, interaction: discord.Interaction, name: str):
         """查询法术信息"""
@@ -694,7 +694,7 @@ class QueryCommands(commands.Cog):
         )
         await thread.send(embed=source_embed)
 
-    @discord.app_commands.command(name="monster", description="查询D&D 5e怪物信息")
+    @discord.app_commands.command(name="mon", description="查询D&D 5e怪物信息")
     @discord.app_commands.describe(name="怪物名称（英文）")
     async def monster(self, interaction: discord.Interaction, name: str):
         """查询怪物信息"""
@@ -760,7 +760,7 @@ class QueryCommands(commands.Cog):
                 self.logger.error(f"Discord响应失败: {response_error}")
                 # 静默处理，避免进一步崩溃
     
-    @discord.app_commands.command(name="skill", description="查询D&D 5e技能信息")
+    @discord.app_commands.command(name="sk", description="查询D&D 5e技能信息")
     @discord.app_commands.describe(name="技能名称（英文）")
     async def skill(self, interaction: discord.Interaction, name: str):
         """查询技能信息"""

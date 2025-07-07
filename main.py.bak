@@ -35,19 +35,6 @@ class DNDBot(commands.Bot):
         intents.guilds = True
         intents.members = True
         
-        # SSL证书验证配置 - 禁用SSL验证
-        import ssl
-        # 全局禁用SSL警告
-        import urllib3
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        
-        # 设置环境变量
-        os.environ['PYTHONHTTPSVERIFY'] = '0'
-        os.environ['SSL_VERIFY'] = 'false'
-        
-        # 创建不验证SSL的上下文
-        ssl._create_default_https_context = ssl._create_unverified_context
-        
         # 代理配置 - 同时设置环境变量和discord.py参数
         if PROXY_URL:
             print(f"为Discord连接准备代理设置: {PROXY_URL}")
@@ -69,10 +56,6 @@ class DNDBot(commands.Bot):
     async def setup_hook(self):
         """机器人启动时的初始化"""
         logger.info("正在设置机器人...")
-        
-        # 确保HTTP连接器也使用代理
-        if PROXY_URL:
-            logger.info(f"代理设置确认: {PROXY_URL}")
         
         # 初始化数据库
         await self._init_database()
@@ -97,7 +80,8 @@ class DNDBot(commands.Bot):
         """加载所有扩展模块"""
         extensions = [
             'dice.dice_commands',
-            'queries.query_commands'
+            'queries.query_commands',
+            'combat.combat_commands'
         ]
         
         for ext in extensions:
@@ -193,24 +177,6 @@ class DNDBot(commands.Bot):
         
         if type(error) not in error_messages:
             logger.error(f"命令错误: {error}")
-    
-    async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        """应用命令错误处理"""
-        logger.error(f"应用命令错误: {error}")
-        
-        # 检查是否是SSL连接错误
-        if "ssl" in str(error).lower() or "clientconnectorerror" in str(error):
-            error_msg = "❌ 网络连接问题，请稍后重试"
-        else:
-            error_msg = "❌ 命令执行失败，请稍后重试"
-        
-        try:
-            if not interaction.response.is_done():
-                await interaction.response.send_message(error_msg, ephemeral=True)
-            else:
-                await interaction.followup.send(error_msg, ephemeral=True)
-        except Exception as e:
-            logger.error(f"发送错误消息失败: {e}")
 
 # 创建机器人实例
 bot = DNDBot()
@@ -239,7 +205,7 @@ async def help_command(interaction: discord.Interaction):
             "`/ping` - 测试机器人响应\n"
             "`/help` - 显示此帮助信息\n"
             "`/echo <消息>` - 重复您的消息\n"
-            "`/dbstats` - 显示数据库统计信息"
+            "`/db` - 显示数据库统计信息"
         ),
         inline=False
     )
@@ -248,7 +214,7 @@ async def help_command(interaction: discord.Interaction):
     embed.add_field(
         name="🎲 骰子系统",
         value=(
-            "`/r` - 投掷骰子 (支持多种参数)\n"
+            "`/roll` - 投掷骰子 (支持多种参数)\n"
             "`/check <修正值>` - 技能检定\n"
             "`/save <类型> <修正值>` - 豁免检定\n"
             "`/att <加值> <伤害骰>` - 攻击检定\n"
@@ -265,6 +231,22 @@ async def help_command(interaction: discord.Interaction):
             "`/sp <法术名>` - 查询D&D 5e法术信息\n"
             "`/mon <怪物名>` - 查询怪物属性和能力\n"
             "`/sk <技能名>` - 查询技能详细说明"
+        ),
+        inline=False
+    )
+    
+    # 战斗系统
+    embed.add_field(
+        name="⚔️ 战斗系统 (DM限定)",
+        value=(
+            "`/cs` - 开始新战斗\n"
+            "`/ce` - 结束战斗\n"
+            "`/st` - 查看战斗状态\n"
+            "`/add` - 添加参与者\n"
+            "`/rm` - 移除参与者\n"
+            "`/next` - 下一回合\n"
+            "`/dmg` - 造成伤害\n"
+            "`/heal` - 治疗角色"
         ),
         inline=False
     )
@@ -289,7 +271,7 @@ async def echo(interaction: discord.Interaction, message: str):
     """重复消息"""
     await interaction.response.send_message(f'📢 {message}')
 
-@bot.tree.command(name='dbstats', description='显示数据库统计信息')
+@bot.tree.command(name='db', description='显示数据库统计信息')
 async def database_stats(interaction: discord.Interaction):
     """显示数据库统计"""
     try:

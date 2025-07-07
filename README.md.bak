@@ -1,6 +1,6 @@
 # DND_DC_BOT - 龙与地下城Discord机器人
 
-![Status](https://img.shields.io/badge/状态-SSL修复中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.9-blue) ![Commands](https://img.shields.io/badge/斜杠命令-21个-orange) ![Network](https://img.shields.io/badge/网络连接-SSL问题-red)
+![Status](https://img.shields.io/badge/状态-开发中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.8-blue) ![Commands](https://img.shields.io/badge/斜杠命令-21个-orange) ![Network](https://img.shields.io/badge/网络连接-正常-green)
 
 一个专为龙与地下城(D&D)游戏设计的Discord机器人，旨在为玩家和DM提供便捷的游戏辅助功能。
 
@@ -33,9 +33,9 @@
 4. **故障排除**：如果遇到连接问题，请查看[故障排除指南](docs/troubleshooting.md)
 
 ### 骰子系统 ✅
-- ✅ **基础投掷**: `/r dice:d20`
-- ✅ **优势/劣势**: `/r dice:d20 advantage:优势 modifier:5`
-- ✅ **复杂投掷**: `/r dice:d6 count:4 drop_lowest:1`
+- ✅ **基础投掷**: `/roll dice:d20`
+- ✅ **优势/劣势**: `/roll dice:d20 advantage:优势 modifier:5`
+- ✅ **复杂投掷**: `/roll dice:d6 count:4 drop_lowest:1`
 - ✅ **技能检定**: `/check modifier:5 advantage:优势`
 - ✅ **攻击检定**: `/att attack_bonus:5 damage_dice:1d8+3`
 - ✅ **属性生成**: `/stats method:4d6去最低`
@@ -95,45 +95,45 @@
 - **投票系统**: 团队决策投票
 - **成就系统**: 记录玩家的游戏成就
 
-## 🎲 `/r` 命令使用指南（原`/roll`）
+## 🎲 `/roll` 命令使用指南
 
 ### 基础用法
 ```
-/r dice:d20                          # 投掷1个d20
-/r dice:d6                           # 投掷1个d6
-/r dice:d100                         # 投掷1个d100
+/roll dice:d20                          # 投掷1个d20
+/roll dice:d6                           # 投掷1个d6
+/roll dice:d100                         # 投掷1个d100
 ```
 
 ### 带修正值
 ```
-/r dice:d20 modifier:5               # 投掷d20+5
-/r dice:d8 modifier:-2               # 投掷d8-2
+/roll dice:d20 modifier:5               # 投掷d20+5
+/roll dice:d8 modifier:-2               # 投掷d8-2
 ```
 
 ### 优势/劣势投掷
 ```
-/r dice:d20 advantage:优势           # 优势骰 (2d20取高)
-/r dice:d20 advantage:劣势           # 劣势骰 (2d20取低)
-/r dice:d20 advantage:优势 modifier:3 # 优势骰+3
+/roll dice:d20 advantage:优势           # 优势骰 (2d20取高)
+/roll dice:d20 advantage:劣势           # 劣势骰 (2d20取低)
+/roll dice:d20 advantage:优势 modifier:3 # 优势骰+3
 ```
 
 ### 多个骰子
 ```
-/r dice:d6 count:3                   # 投掷3d6
-/r dice:d8 count:2 modifier:4        # 投掷2d8+4
+/roll dice:d6 count:3                   # 投掷3d6
+/roll dice:d8 count:2 modifier:4        # 投掷2d8+4
 ```
 
 ### 保留/丢弃规则
 ```
-/r dice:d6 count:4 drop_lowest:1     # 4d6去最低 (D&D属性生成)
-/r dice:d20 count:2 keep_highest:1   # 2d20保留最高
-/r dice:d12 count:5 keep_highest:3 modifier:-1  # 5d12保留最高3个-1
+/roll dice:d6 count:4 drop_lowest:1     # 4d6去最低 (D&D属性生成)
+/roll dice:d20 count:2 keep_highest:1   # 2d20保留最高
+/roll dice:d12 count:5 keep_highest:3 modifier:-1  # 5d12保留最高3个-1
 ```
 
 ### 复杂组合示例
 ```
-/r dice:d8 count:3 modifier:2 private:true      # 3d8+2 (私密显示)
-/r dice:d6 advantage:优势 modifier:4             # d6优势骰+4
+/roll dice:d8 count:3 modifier:2 private:true      # 3d8+2 (私密显示)
+/roll dice:d6 advantage:优势 modifier:4             # d6优势骰+4
 ```
 
 ## 🛠️ 技术栈
@@ -148,7 +148,7 @@
 ### 🎲 骰子系统
 | 命令 | 描述 | 示例 |
 |------|------|------|
-| `/r` | 投掷骰子 (多种参数) | `/r dice:d20 modifier:5` |
+| `/roll` | 投掷骰子 (多种参数) | `/roll dice:d20 modifier:5` |
 | `/check` | 技能检定 | `/check modifier:3 advantage:优势` |
 | `/save` | 豁免检定 | `/save save_type:敏捷 modifier:2` |
 | `/att` | 攻击检定 | `/att attack_bonus:5 damage_dice:1d8+3` |
@@ -307,7 +307,7 @@ lsof -i :7890
 
 ### ✅ 已完成功能
 - **完整的骰子系统**: 支持所有D&D骰子类型和复杂投掷规则
-- **参数化命令**: `/r` 命令支持灵活的参数组合
+- **参数化命令**: `/roll` 命令支持灵活的参数组合
 - **优势/劣势系统**: 完全兼容修正值和其他参数
 - **技能和豁免检定**: 支持各种检定类型
 - **攻击检定系统**: 攻击骰和伤害计算
@@ -359,20 +359,6 @@ lsof -i :7890
 3. **网络诊断**: 使用 `python3 check_connection.py` 检查连接状态
 
 ## 📝 更新日志
-
-### v1.2.9 (2025-07-07) ⚡
-- **最简化骰子命令**: `/roll` → `/r`
-  - 从16字符缩短到2字符，减少87.5%输入
-  - 保持完整功能和所有参数支持
-  - 骰子帮助命令也已简化：`/rh`
-- **SSL连接问题修复尝试**: 系统级SSL兼容性问题
-  - 降级urllib3从v2.3.0到v1.26.20以支持LibreSSL 2.8.3
-  - 添加多层SSL验证禁用机制
-  - 创建专门的SSL修复启动脚本
-  - 增强SSL连接错误处理和用户友好提示
-  - **问题状态**: 根本原因为LibreSSL 2.8.3与现代SSL库不兼容
-- **文档全面更新**: 所有文档和帮助信息已同步更新
-- **向下兼容**: 功能保持100%不变，只是命令更短
 
 ### v1.2.8 (2025-07-07) ⚡
 - **命令简化**: 所有slash command都改为简写形式，更方便使用
@@ -485,4 +471,4 @@ lsof -i :7890
 - Discord机器人框架搭建
 
 ---
-*最后更新: 2025年7月7日 - v1.2.9发布，`/roll`命令简化为`/r`，输入效率提升87.5%*
+*最后更新: 2025年7月7日 - v1.2.8发布，所有slash command简化完成，更便于使用*

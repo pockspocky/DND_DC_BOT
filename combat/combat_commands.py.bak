@@ -1,0 +1,470 @@
+"""
+战斗辅助系统Discord命令
+提供D&D战斗管理的斜杠命令接口
+"""
+import discord
+from discord.ext import commands
+from discord import app_commands
+from typing import Optional, List
+from .combat_manager import CombatManager, CombatSession, CombatParticipant
+from dice.dice_roller import DiceRoller
+import logging
+
+logger = logging.getLogger(__name__)
+
+class CombatCommands(commands.Cog):
+    """战斗辅助命令组"""
+    
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.combat_manager = CombatManager()
+        self.dice_roller = DiceRoller()
+        
+    async def cog_load(self):
+        """扩展加载时的初始化"""
+        logger.info("战斗辅助命令模块已加载")
+        
+    async def cog_unload(self):
+        """扩展卸载时的清理"""
+        logger.info("战斗辅助命令模块已卸载")
+    
+    def _create_combat_embed(self, combat: CombatSession, participants: List[CombatParticipant]) -> discord.Embed:
+        """创建战斗状态嵌入消息"""
+        embed = discord.Embed(
+            title=f"⚔️ 战斗: {combat.name}",
+            description=f"第 {combat.current_round} 回合",
+            color=discord.Color.red()
+        )
+        
+        if participants:
+            # 当前回合角色
+            current_participant = participants[combat.current_turn] if combat.current_turn < len(participants) else None
+            if current_participant:
+                embed.add_field(
+                    name="🎯 当前回合",
+                    value=f"{current_participant.type_icon} **{current_participant.name}**",
+                    inline=False
+                )
+            
+            # 先攻顺序
+            initiative_list = []
+            for i, participant in enumerate(participants):
+                status = "👈" if i == combat.current_turn else "　"
+                hp_bar = self._create_hp_bar(participant)
+                initiative_list.append(
+                    f"{status} {participant.status_icon} **{participant.name}** ({participant.initiative}) - {hp_bar}"
+                )
+            
+            embed.add_field(
+                name="📋 先攻顺序",
+                value="\n".join(initiative_list) if initiative_list else "无参与者",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="📋 参与者",
+                value="暂无参与者，使用 `/add_combatant` 添加",
+                inline=False
+            )
+        
+        embed.set_footer(text=f"战斗ID: {combat.id} | DM权限命令")
+        return embed
+    
+    def _create_hp_bar(self, participant: CombatParticipant) -> str:
+        """创建生命值条"""
+        percentage = participant.hp_percentage
+        bar_length = 10
+        filled = int(bar_length * percentage / 100)
+        empty = bar_length - filled
+        
+        bar = "█" * filled + "░" * empty
+        return f"{participant.current_hp}/{participant.max_hp} HP |{bar}|"
+    
+    async def _check_dm_permission(self, interaction: discord.Interaction) -> bool:
+        """检查DM权限并响应"""
+        if not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message("❌ 此命令只能在服务器中使用", ephemeral=True)
+            return False
+            
+        if not await self.combat_manager.is_dm(interaction.user):
+            await interaction.response.send_message("❌ 只有DM可以使用此命令", ephemeral=True)
+            return False
+            
+        return True
+    
+    # ===== 战斗管理命令 =====
+    
+    @app_commands.command(name="cs", description="开始新的战斗会话")
+    @app_commands.describe(name="战斗名称（可选，默认自动生成）")
+    async def start_combat(self, interaction: discord.Interaction, name: Optional[str] = None):
+        """开始新战斗"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        # 检查是否已有活跃战斗
+        existing = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        if existing:
+            embed = discord.Embed(
+                title="⚠️ 已有活跃战斗",
+                description=f"当前频道已有战斗 `{existing.name}` 正在进行\n使用 `/ce` 结束当前战斗",
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        # 生成默认战斗名称
+        if not name:
+            import datetime
+            timestamp = datetime.datetime.now().strftime("%m-%d %H:%M")
+            name = f"战斗 {timestamp}"
+        
+        # 创建新战斗
+        combat = await self.combat_manager.start_combat(
+            interaction.guild_id, interaction.channel_id, interaction.user.id, name
+        )
+        
+        if combat:
+            embed = discord.Embed(
+                title="⚔️ 战斗开始!",
+                description=f"战斗 `{name}` 已开始",
+                color=discord.Color.green()
+            )
+            embed.add_field(
+                name="📝 下一步",
+                value="使用 `/add` 添加参与者\n使用 `/st` 查看战斗状态",
+                inline=False
+            )
+            embed.set_footer(text=f"战斗ID: {combat.id}")
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"用户 {interaction.user} 在频道 {interaction.channel_id} 开始战斗: {name}")
+        else:
+            await interaction.response.send_message("❌ 创建战斗失败，请稍后重试", ephemeral=True)
+    
+    @app_commands.command(name="ce", description="结束当前战斗")
+    async def end_combat(self, interaction: discord.Interaction):
+        """结束战斗"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
+            return
+        
+        success = await self.combat_manager.end_combat(combat.id)
+        
+        if success:
+            embed = discord.Embed(
+                title="🏁 战斗结束",
+                description=f"战斗 `{combat.name}` 已结束",
+                color=discord.Color.blue()
+            )
+            embed.add_field(
+                name="📊 战斗统计",
+                value=f"总回合数: {combat.current_round}\n参与者: {len(combat.participants)}",
+                inline=False
+            )
+            embed.add_field(
+                name="📚 查看日志",
+                value="使用 `/combat_log` 查看详细战斗记录",
+                inline=False
+            )
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"用户 {interaction.user} 结束战斗: {combat.name}")
+        else:
+            await interaction.response.send_message("❌ 结束战斗失败，请稍后重试", ephemeral=True)
+    
+    @app_commands.command(name="combat_status", description="查看当前战斗状态")
+    async def combat_status(self, interaction: discord.Interaction):
+        """查看战斗状态"""
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            embed = discord.Embed(
+                title="ℹ️ 无活跃战斗",
+                description="当前频道没有正在进行的战斗\n使用 `/combat_start` 开始新战斗",
+                color=discord.Color.blue()
+            )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        
+        participants = await self.combat_manager.get_participants(combat.id)
+        embed = self._create_combat_embed(combat, participants)
+        
+        await interaction.response.send_message(embed=embed)
+    
+    # ===== 参与者管理命令 =====
+    
+    @app_commands.command(name="add_combatant", description="添加战斗参与者")
+    @app_commands.describe(
+        name="角色名称",
+        max_hp="最大生命值",
+        initiative="先攻值",
+        ac="护甲等级（可选）",
+        is_npc="是否为NPC（可选）"
+    )
+    async def add_combatant(
+        self, interaction: discord.Interaction, 
+        name: str, max_hp: int, initiative: int,
+        ac: Optional[int] = 10, is_npc: Optional[bool] = False
+    ):
+        """添加参与者"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
+            return
+        
+        # 验证数值
+        if max_hp <= 0:
+            await interaction.response.send_message("❌ 最大生命值必须大于0", ephemeral=True)
+            return
+        
+        if len(name) > 50:
+            await interaction.response.send_message("❌ 角色名称过长（最多50字符）", ephemeral=True)
+            return
+        
+        participant = await self.combat_manager.add_participant(
+            combat.id, name, max_hp, initiative, ac, is_npc
+        )
+        
+        if participant:
+            embed = discord.Embed(
+                title="✅ 参与者已添加",
+                description=f"{participant.type_icon} **{name}** 加入战斗!",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="先攻", value=str(initiative), inline=True)
+            embed.add_field(name="生命值", value=f"{max_hp}/{max_hp}", inline=True)
+            embed.add_field(name="护甲", value=str(ac), inline=True)
+            
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"用户 {interaction.user} 添加参与者: {name}")
+        else:
+            await interaction.response.send_message("❌ 添加参与者失败，名称可能已存在", ephemeral=True)
+    
+    @app_commands.command(name="remove_combatant", description="移除战斗参与者")
+    @app_commands.describe(name="要移除的角色名称")
+    async def remove_combatant(self, interaction: discord.Interaction, name: str):
+        """移除参与者"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
+            return
+        
+        success = await self.combat_manager.remove_participant(combat.id, name)
+        
+        if success:
+            embed = discord.Embed(
+                title="✅ 参与者已移除",
+                description=f"**{name}** 已离开战斗",
+                color=discord.Color.blue()
+            )
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"用户 {interaction.user} 移除参与者: {name}")
+        else:
+            await interaction.response.send_message("❌ 移除参与者失败，角色可能不存在", ephemeral=True)
+    
+    # ===== 回合管理命令 =====
+    
+    @app_commands.command(name="next_turn", description="切换到下一个回合")
+    async def next_turn(self, interaction: discord.Interaction):
+        """下一回合"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
+            return
+        
+        current_participant = await self.combat_manager.next_turn(combat.id)
+        
+        if current_participant:
+            embed = discord.Embed(
+                title="🔄 回合切换",
+                description=f"现在是 **{current_participant.name}** 的回合",
+                color=discord.Color.gold()
+            )
+            
+            # 更新后重新获取战斗状态
+            updated_combat = await self.combat_manager.get_active_combat(
+                interaction.guild_id, interaction.channel_id
+            )
+            if updated_combat:
+                embed.add_field(
+                    name="⏰ 当前状态",
+                    value=f"第 {updated_combat.current_round} 回合",
+                    inline=True
+                )
+            
+            hp_bar = self._create_hp_bar(current_participant)
+            embed.add_field(
+                name="💖 生命值",
+                value=hp_bar,
+                inline=False
+            )
+            
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"战斗回合切换到: {current_participant.name}")
+        else:
+            await interaction.response.send_message("❌ 切换回合失败，请检查是否有参与者", ephemeral=True)
+    
+    # ===== 生命值管理命令 =====
+    
+    @app_commands.command(name="damage", description="对角色造成伤害")
+    @app_commands.describe(
+        target="目标角色名称",
+        expression="伤害表达式（如: 2d6+3）或固定数值",
+        attacker="攻击者名称（可选）"
+    )
+    async def apply_damage(
+        self, interaction: discord.Interaction, 
+        target: str, expression: str, attacker: Optional[str] = "未知"
+    ):
+        """造成伤害"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
+            return
+        
+        # 解析伤害值
+        try:
+            # 尝试直接解析数字
+            if expression.isdigit():
+                damage = int(expression)
+                dice_result = f"固定伤害: {damage}"
+            else:
+                # 使用骰子系统
+                result = await self.dice_roller.roll_dice(expression)
+                damage = result.total
+                dice_result = f"{expression}: {result.total} ({result.details})"
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 无效的伤害表达式: {expression}", ephemeral=True)
+            return
+        
+        if damage < 0:
+            await interaction.response.send_message("❌ 伤害值不能为负数", ephemeral=True)
+            return
+        
+        participant = await self.combat_manager.apply_damage(
+            combat.id, target, damage, attacker, expression, dice_result
+        )
+        
+        if participant:
+            embed = discord.Embed(
+                title="💥 伤害应用",
+                description=f"**{attacker}** → **{target}**",
+                color=discord.Color.red()
+            )
+            embed.add_field(name="🎲 投掷结果", value=dice_result, inline=False)
+            embed.add_field(name="💔 伤害", value=f"{damage} 点", inline=True)
+            
+            hp_bar = self._create_hp_bar(participant)
+            embed.add_field(name="💖 剩余生命值", value=hp_bar, inline=False)
+            
+            if participant.current_hp <= 0:
+                embed.add_field(name="💀 状态", value=f"**{target}** 倒下了!", inline=False)
+            
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"对 {target} 造成 {damage} 点伤害")
+        else:
+            await interaction.response.send_message(f"❌ 找不到角色: {target}", ephemeral=True)
+    
+    @app_commands.command(name="heal", description="治疗角色")
+    @app_commands.describe(
+        target="目标角色名称",
+        expression="治疗表达式（如: 1d8+2）或固定数值",
+        healer="治疗者名称（可选）"
+    )
+    async def apply_healing(
+        self, interaction: discord.Interaction,
+        target: str, expression: str, healer: Optional[str] = "未知"
+    ):
+        """应用治疗"""
+        if not await self._check_dm_permission(interaction):
+            return
+        
+        combat = await self.combat_manager.get_active_combat(
+            interaction.guild_id, interaction.channel_id
+        )
+        
+        if not combat:
+            await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
+            return
+        
+        # 解析治疗值
+        try:
+            if expression.isdigit():
+                healing = int(expression)
+                dice_result = f"固定治疗: {healing}"
+            else:
+                result = await self.dice_roller.roll_dice(expression)
+                healing = result.total
+                dice_result = f"{expression}: {result.total} ({result.details})"
+        except Exception as e:
+            await interaction.response.send_message(f"❌ 无效的治疗表达式: {expression}", ephemeral=True)
+            return
+        
+        if healing < 0:
+            await interaction.response.send_message("❌ 治疗值不能为负数", ephemeral=True)
+            return
+        
+        participant = await self.combat_manager.apply_healing(
+            combat.id, target, healing, healer, expression, dice_result
+        )
+        
+        if participant:
+            embed = discord.Embed(
+                title="✨ 治疗应用",
+                description=f"**{healer}** → **{target}**",
+                color=discord.Color.green()
+            )
+            embed.add_field(name="🎲 投掷结果", value=dice_result, inline=False)
+            embed.add_field(name="💚 治疗", value=f"{healing} 点", inline=True)
+            
+            hp_bar = self._create_hp_bar(participant)
+            embed.add_field(name="💖 当前生命值", value=hp_bar, inline=False)
+            
+            await interaction.response.send_message(embed=embed)
+            
+            logger.info(f"为 {target} 治疗 {healing} 点生命值")
+        else:
+            await interaction.response.send_message(f"❌ 找不到角色: {target}", ephemeral=True)
+
+async def setup(bot: commands.Bot):
+    """加载战斗命令扩展"""
+    await bot.add_cog(CombatCommands(bot)) 

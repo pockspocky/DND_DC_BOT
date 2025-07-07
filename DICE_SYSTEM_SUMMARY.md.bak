@@ -14,14 +14,14 @@
 - **属性生成**: 多种D&D角色属性生成方法
 
 ### 命令列表
-1. `/r` - 基础骰子投掷（支持多种参数）
+1. `/roll` - 基础骰子投掷（支持多种参数）
 2. `/check` - 技能检定
 3. `/save` - 豁免检定
 4. `/attack` - 攻击检定和伤害
 5. `/stats` - 生成角色属性
 6. `/rollhelp` - 显示详细帮助
 
-### `/r` 命令详解
+### `/roll` 命令详解
 #### 参数列表
 - `dice`: 基础骰子 (如: d20, d6, d100)
 - `modifier`: 修正值 (可选)
@@ -32,12 +32,12 @@
 - `private`: 是否私密显示 (可选)
 
 #### 使用示例
-- `/r dice:d20` - 投掷1d20
-- `/r dice:d20 modifier:5` - 投掷d20+5
-- `/r dice:d20 advantage:优势` - 优势骰
-- `/r dice:d20 advantage:优势 modifier:3` - 优势骰+3
-- `/r dice:d6 count:4 drop_lowest:1` - 4d6去最低
-- `/r dice:d20 count:2 keep_highest:1` - 2d20保留最高
+- `/roll dice:d20` - 投掷1d20
+- `/roll dice:d20 modifier:5` - 投掷d20+5
+- `/roll dice:d20 advantage:优势` - 优势骰
+- `/roll dice:d20 advantage:优势 modifier:3` - 优势骰+3
+- `/roll dice:d6 count:4 drop_lowest:1` - 4d6去最低
+- `/roll dice:d20 count:2 keep_highest:1` - 2d20保留最高
 
 ### 技术实现
 - **Python 3.8+** 异步编程

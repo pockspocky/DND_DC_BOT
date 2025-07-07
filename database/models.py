@@ -304,6 +304,30 @@ class DatabaseModels:
                 )
             """,
             
+            # 战斗日志表
+            "combat_logs": """
+                CREATE TABLE IF NOT EXISTS combat_logs (
+                    id INTEGER PRIMARY KEY,
+                    combat_session_id INTEGER NOT NULL,
+                    round_number INTEGER NOT NULL,
+                    turn_order INTEGER NOT NULL,
+                    action_type TEXT NOT NULL,
+                    actor_name TEXT NOT NULL,
+                    target_name TEXT,
+                    action_description TEXT NOT NULL,
+                    dice_expression TEXT,
+                    dice_result TEXT,
+                    damage_dealt INTEGER DEFAULT 0,
+                    healing_dealt INTEGER DEFAULT 0,
+                    hp_before INTEGER,
+                    hp_after INTEGER,
+                    is_critical BOOLEAN DEFAULT FALSE,
+                    is_death BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (combat_session_id) REFERENCES combat_sessions(id)
+                )
+            """,
+            
             # 用户成就表
             "achievements": """
                 CREATE TABLE IF NOT EXISTS achievements (
@@ -337,6 +361,8 @@ class DatabaseModels:
             "CREATE INDEX IF NOT EXISTS idx_combat_sessions_guild_id ON combat_sessions(guild_id)",
             "CREATE INDEX IF NOT EXISTS idx_combat_participants_session_id ON combat_participants(combat_session_id)",
             "CREATE INDEX IF NOT EXISTS idx_status_effects_participant_id ON status_effects(participant_id)",
+            "CREATE INDEX IF NOT EXISTS idx_combat_logs_session_id ON combat_logs(combat_session_id)",
+            "CREATE INDEX IF NOT EXISTS idx_combat_logs_round ON combat_logs(round_number)",
             "CREATE INDEX IF NOT EXISTS idx_dice_history_user_id ON dice_history(user_id)",
             "CREATE INDEX IF NOT EXISTS idx_dice_history_guild_id ON dice_history(guild_id)",
             "CREATE INDEX IF NOT EXISTS idx_spells_name ON spells(name)",

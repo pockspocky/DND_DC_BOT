@@ -1,0 +1,86 @@
+# Git相关
+.git
+.gitignore
+.gitattributes
+
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+
+# IDE相关
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+logs/
+*.log
+bot_*.log
+
+# 环境变量文件
+.env
+.env.local
+.env.*.local
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3
+
+# 临时文件
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# 文档相关
+*.md
+!README.md
+docs/
+
+# 备份文件
+*.bak
+*.backup
+
+# Docker相关
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# 部署脚本
+deploy-docker.sh
+start_bot_*.sh
+
+# 测试文件
+test_*.py
+*_test.py
+tests/
+
+# 配置示例
+*.example
+config_example.* 

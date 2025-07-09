@@ -1,6 +1,6 @@
 # DND_DC_BOT - 龙与地下城Discord机器人
 
-![Status](https://img.shields.io/badge/状态-SSL修复中-yellow) ![Version](https://img.shields.io/badge/版本-v1.2.9-blue) ![Commands](https://img.shields.io/badge/斜杠命令-21个-orange) ![Network](https://img.shields.io/badge/网络连接-SSL问题-red)
+![Status](https://img.shields.io/badge/状态-Docker就绪-green) ![Version](https://img.shields.io/badge/版本-v1.3.0-blue) ![Commands](https://img.shields.io/badge/斜杠命令-21个-orange) ![Docker](https://img.shields.io/badge/Docker-支持-blue)
 
 一个专为龙与地下城(D&D)游戏设计的Discord机器人，旨在为玩家和DM提供便捷的游戏辅助功能。
 
@@ -8,7 +8,33 @@
 
 机器人已完成核心功能开发，支持完整的D&D游戏辅助：
 
-### ⚠️ 网络环境配置
+### 🐳 Docker部署（推荐）
+**使用Docker可以完美解决SSL连接问题，推荐使用此方式部署**
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/yourusername/DND_DC_BOT.git
+cd DND_DC_BOT
+
+# 2. 配置环境变量
+cp docker.env.example .env
+# 编辑.env文件，设置DISCORD_TOKEN
+
+# 3. 一键部署
+chmod +x deploy-docker.sh
+./deploy-docker.sh
+
+# 4. 管理服务
+./deploy-docker.sh --status   # 查看状态
+./deploy-docker.sh --logs     # 查看日志
+./deploy-docker.sh --restart  # 重启服务
+./deploy-docker.sh --down     # 停止服务
+```
+
+### 🐍 传统部署
+如果你偏好传统方式，可以直接在本地运行：
+
+#### ⚠️ 网络环境配置
 如果你的网络环境需要代理才能访问Discord：
 1. **编辑`.env`文件**：确保包含正确的代理设置
    ```env
@@ -63,13 +89,17 @@
 - **装备管理**: 管理角色的装备和物品清单
 - **等级提升**: 协助角色升级和能力提升
 
-### 战斗辅助 ✅ 已完成
-- **先攻顺序**: 自动管理战斗中的先攻顺序 ✅
-- **生命值追踪**: 实时跟踪所有参与者的生命值 ✅
-- **伤害/治疗**: 支持骰子表达式的伤害和治疗系统 ✅
-- **回合管理**: 完整的回合切换和战斗状态管理 ✅
-- **DM权限**: 基于角色和管理员权限的DM控制 ✅
+### ⚔️ 战斗管理系统 ✅ 全面完成
+- **完整的战斗会话管理**: 创建、管理和结束战斗会话 ✅
+- **先攻排序**: 自动按先攻值排序参与者 ✅
+- **回合制管理**: 智能回合切换和追踪 ✅
+- **生命值管理**: 实时伤害和治疗计算，支持骰子表达式 ✅
+- **参与者管理**: 添加/移除玩家角色和NPC ✅
+- **多频道支持**: 每个频道独立的战斗会话 ✅
+- **权限控制**: DM专用管理命令，自动权限检查 ✅
+- **美观的状态显示**: 生命值条、回合指示器、状态图标 ✅
 - **详细日志**: 所有战斗行动的完整记录 ✅
+- **数据持久化**: 战斗数据自动保存，支持机器人重启恢复 ✅
 
 ### 游戏资源 ✅ 部分完成
 - **法术查询**: 完整的法术数据库和详细信息 ✅
@@ -138,10 +168,13 @@
 
 ## 🛠️ 技术栈
 
-- **Python 3.8+**: 主要开发语言
+- **Python 3.11**: 主要开发语言（Docker版本）
 - **discord.py**: Discord API库
 - **SQLite**: 本地数据存储
 - **python-dotenv**: 环境变量管理
+- **Docker**: 容器化部署
+- **Docker Compose**: 服务编排
+- **OpenSSL**: 现代SSL支持（Docker版本）
 
 ## 📋 简化命令参考 ⚡
 
@@ -183,39 +216,77 @@
 
 ## 🚀 安装和配置
 
-1. 克隆项目到本地
+### 🐳 Docker部署（推荐）
+**Docker部署能够解决SSL连接问题，是推荐的部署方式**
+
+#### 前置要求
+- Docker 20.10+
+- Docker Compose 1.29+
+
+#### 安装步骤
+1. **克隆项目**
 ```bash
 git clone https://github.com/yourusername/DND_DC_BOT.git
 cd DND_DC_BOT
 ```
 
-2. 安装依赖
+2. **配置环境变量**
+```bash
+cp docker.env.example .env
+# 编辑.env文件，设置DISCORD_TOKEN
+```
+
+3. **一键部署**
+```bash
+chmod +x deploy-docker.sh
+./deploy-docker.sh
+```
+
+4. **管理服务**
+```bash
+./deploy-docker.sh --status   # 查看状态
+./deploy-docker.sh --logs     # 查看日志
+./deploy-docker.sh --restart  # 重启服务
+./deploy-docker.sh --down     # 停止服务
+```
+
+### 🐍 传统部署
+
+#### 前置要求
+- Python 3.8+
+- pip
+
+#### 安装步骤
+1. **克隆项目到本地**
+```bash
+git clone https://github.com/yourusername/DND_DC_BOT.git
+cd DND_DC_BOT
+```
+
+2. **安装依赖**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. 配置环境变量
+3. **配置环境变量**
 创建 `.env` 文件并添加：
 ```
 DISCORD_TOKEN=your_discord_bot_token
-PREFIX=/
+PROXY_URL=http://127.0.0.1:7890  # 如果需要代理
 ```
 
-4. 运行机器人
+4. **启动机器人**
 ```bash
-# 方法1: 直接启动（适用于大部分情况）
+# 推荐方式：直接启动（已整合所有修复）
 python3 main.py
 
-# 方法2: 使用启动脚本（解决代理连接问题）
-./start_bot_with_proxy.sh
-
-# 方法3: 手动设置环境变量启动
-HTTP_PROXY=http://127.0.0.1:7890 HTTPS_PROXY=http://127.0.0.1:7890 python3 main.py
+# 后台启动
+nohup python3 main.py > bot_output.log 2>&1 &
 ```
 
 ### ⚠️ 重要提示
-- 如果你的网络环境需要代理访问Discord，请使用方法2或方法3
-- 如果遇到连接问题，请查看[故障排除指南](docs/troubleshooting.md)
+- **推荐使用Docker部署**，可以完美解决SSL连接问题
+- 如果使用传统部署遇到连接问题，请查看[故障排除指南](docs/troubleshooting.md)
 - 确保代理服务（如ClashX）正在运行并监听7890端口
 - **安全提醒**：请查看[安全配置指南](docs/security_guide.md)，避免敏感信息泄露
 
@@ -354,17 +425,41 @@ lsof -i :7890
 - **WebSocket连接**: 代理设置已优化，连接稳定可靠
 
 ### 🚀 启动方式
-1. **推荐方式**: `python3 main.py` (已内置代理支持)
-2. **备用方式**: `./start_bot_with_proxy.sh` (兼容旧版本)
-3. **网络诊断**: 使用 `python3 check_connection.py` 检查连接状态
+1. **推荐方式**: `python3 main.py` (已整合所有修复和代理支持)
+2. **后台启动**: `nohup python3 main.py > bot_output.log 2>&1 &`
+3. **Docker启动**: `./deploy-docker.sh`
+4. **网络诊断**: 使用 `python3 check_connection.py` 检查连接状态
+
+📋 **启动详情**: 查看 [START_GUIDE.md](START_GUIDE.md) 了解完整的启动指南
 
 ## 📝 更新日志
 
-### v1.2.9 (2025-07-07) ⚡
+### v1.3.0 (2025-07-07) 🐳
+- **Docker部署支持**: 完美解决SSL连接问题
+  - 创建完整的Docker部署方案
+  - 使用Python 3.11 + 现代OpenSSL，彻底解决SSL兼容性问题
+  - 提供一键部署脚本`deploy-docker.sh`
+  - 支持容器化服务管理（启动、停止、重启、日志查看）
+  - 健康检查和资源限制配置
+  - 自动重启和日志管理
+- **Docker配置文件**:
+  - `Dockerfile`: 优化的镜像构建配置
+  - `docker-compose.yml`: 完整的服务编排
+  - `docker.env.example`: 环境变量配置示例
+  - `.dockerignore`: 构建优化配置
+- **部署文档升级**: 推荐Docker部署，传统部署作为备选
+- **版本升级**: v1.2.9 → v1.3.0，标志着容器化部署的完成
+
+### v1.2.9 (2025-07-09) ⚡
 - **最简化骰子命令**: `/roll` → `/r`
   - 从16字符缩短到2字符，减少87.5%输入
   - 保持完整功能和所有参数支持
   - 骰子帮助命令也已简化：`/rh`
+- **启动问题修复**: 解决`'NoneType' object has no attribute 'sequence'`错误
+  - 修复main.py中的启动逻辑错误（移除错误的`async with bot:`语法）
+  - 更新requirements.txt指定正确的Discord.py版本范围
+  - 增强启动过程错误处理和跟踪机制
+  - 机器人现在可以正常连接到Discord并同步所有21个斜杠命令
 - **SSL连接问题修复尝试**: 系统级SSL兼容性问题
   - 降级urllib3从v2.3.0到v1.26.20以支持LibreSSL 2.8.3
   - 添加多层SSL验证禁用机制
@@ -372,7 +467,12 @@ lsof -i :7890
   - 增强SSL连接错误处理和用户友好提示
   - **问题状态**: 根本原因为LibreSSL 2.8.3与现代SSL库不兼容
 - **文档全面更新**: 所有文档和帮助信息已同步更新
+- **稳定性提升**: 机器人现在可以稳定运行，所有功能都正常工作
 - **向下兼容**: 功能保持100%不变，只是命令更短
+- **代码整合**: 所有修复已整合到main.py，删除了11个不必要的文件
+- **启动简化**: 现在只需要 `python3 main.py` 即可启动，无需额外脚本
+- **运行时修复**: 修复了SSL连接重置和交互超时问题
+- **增强稳定性**: 添加了命令超时保护和更好的错误处理机制
 
 ### v1.2.8 (2025-07-07) ⚡
 - **命令简化**: 所有slash command都改为简写形式，更方便使用
@@ -485,4 +585,4 @@ lsof -i :7890
 - Discord机器人框架搭建
 
 ---
-*最后更新: 2025年7月7日 - v1.2.9发布，`/roll`命令简化为`/r`，输入效率提升87.5%*
+*最后更新: 2025年7月7日 - v1.3.0发布，Docker部署支持，完美解决SSL连接问题*

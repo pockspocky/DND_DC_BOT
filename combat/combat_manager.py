@@ -200,6 +200,41 @@ class CombatManager:
         except Exception as e:
             logger.error(f"获取参与者失败: {e}")
             return []
+
+    async def remove_participant(self, session_id: int, name: str) -> bool:
+        """移除战斗参与者"""
+        try:
+            # 检查参与者是否存在
+            participant = await self._get_participant_by_name(session_id, name)
+            if not participant:
+                return False
+            
+            # 标记参与者为非活跃状态
+            query = """
+                UPDATE combat_participants 
+                SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE combat_session_id = ? AND name = ?
+            """
+            
+            await db_manager.execute(query, (session_id, name))
+            
+            # 记录战斗日志
+            await self.log_combat_action(
+                session_id, 1, participant.position_in_turn, "remove_participant", "系统", name,
+                f"{participant.type_icon} {name} 离开战斗"
+            )
+            
+            # 重新排序剩余参与者
+            await self._reorder_participants(session_id)
+            
+            # 调整当前回合（如果移除的是当前回合的角色）
+            await self._adjust_current_turn_after_removal(session_id, participant.position_in_turn)
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"移除参与者失败: {e}")
+            return False
     
     async def next_turn(self, session_id: int) -> Optional[CombatParticipant]:
         """切换到下一个回合"""
@@ -388,7 +423,7 @@ class CombatManager:
         """根据名字获取参与者"""
         try:
             result = await db_manager.fetchone(
-                "SELECT * FROM combat_participants WHERE combat_session_id = ? AND name = ?",
+                "SELECT * FROM combat_participants WHERE combat_session_id = ? AND name = ? AND is_active = 1",
                 (session_id, name)
             )
             if result:
@@ -397,3 +432,39 @@ class CombatManager:
         except Exception as e:
             logger.error(f"获取参与者失败: {e}")
             return None
+
+    async def _adjust_current_turn_after_removal(self, session_id: int, removed_position: int) -> bool:
+        """调整移除参与者后的当前回合"""
+        try:
+            combat = await self._get_combat_by_id(session_id)
+            if not combat:
+                return False
+            
+            participants = await self.get_participants(session_id)
+            if not participants:
+                # 没有参与者了，重置回合
+                await db_manager.execute(
+                    "UPDATE combat_sessions SET current_turn = 0 WHERE id = ?",
+                    (session_id,)
+                )
+                return True
+            
+            # 如果移除的是当前回合之前的角色，需要调整当前回合索引
+            new_turn = combat.current_turn
+            if removed_position <= combat.current_turn:
+                new_turn = max(0, combat.current_turn - 1)
+            
+            # 确保回合索引不超出范围
+            if new_turn >= len(participants):
+                new_turn = 0
+            
+            await db_manager.execute(
+                "UPDATE combat_sessions SET current_turn = ? WHERE id = ?",
+                (new_turn, session_id)
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"调整回合失败: {e}")
+            return False

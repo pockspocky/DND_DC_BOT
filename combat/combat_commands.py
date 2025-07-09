@@ -28,6 +28,8 @@ class CombatCommands(commands.Cog):
         """扩展卸载时的清理"""
         logger.info("战斗辅助命令模块已卸载")
     
+
+    
     def _create_combat_embed(self, combat: CombatSession, participants: List[CombatParticipant]) -> discord.Embed:
         """创建战斗状态嵌入消息"""
         embed = discord.Embed(
@@ -303,7 +305,7 @@ class CombatCommands(commands.Cog):
             await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
             return
         
-        current_participant = await self.combat_manager.next(combat.id)
+        current_participant = await self.combat_manager.next_turn(combat.id)
         
         if current_participant:
             embed = discord.Embed(
@@ -346,7 +348,7 @@ class CombatCommands(commands.Cog):
     )
     async def apply_dmg(
         self, interaction: discord.Interaction, 
-        target: str, expression: str, attacker: Optional[str] = "未知"
+        target: str, expression: str, attacker: Optional[str] = None
     ):
         """造成伤害"""
         if not await self._check_dm_permission(interaction):
@@ -360,6 +362,14 @@ class CombatCommands(commands.Cog):
             await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
             return
         
+        # 如果没有指定攻击者，使用当前回合的角色名称
+        if attacker is None:
+            participants = await self.combat_manager.get_participants(combat.id)
+            if participants and combat.current_turn < len(participants):
+                attacker = participants[combat.current_turn].name
+            else:
+                attacker = interaction.user.display_name
+        
         # 解析伤害值
         try:
             # 尝试直接解析数字
@@ -368,7 +378,9 @@ class CombatCommands(commands.Cog):
                 dice_result = f"固定伤害: {dmg}"
             else:
                 # 使用骰子系统
-                result = await self.dice_roller.roll_dice(expression)
+                result = await self.dice_roller.roll_dice(
+                    expression, interaction.user.id, interaction.guild_id, interaction.channel_id
+                )
                 dmg = result.total
                 dice_result = f"{expression}: {result.total} ({result.details})"
         except Exception as e:
@@ -379,7 +391,7 @@ class CombatCommands(commands.Cog):
             await interaction.response.send_message("❌ 伤害值不能为负数", ephemeral=True)
             return
         
-        participant = await self.combat_manager.apply_dmg(
+        participant = await self.combat_manager.apply_damage(
             combat.id, target, dmg, attacker, expression, dice_result
         )
         
@@ -412,7 +424,7 @@ class CombatCommands(commands.Cog):
     )
     async def apply_healing(
         self, interaction: discord.Interaction,
-        target: str, expression: str, healer: Optional[str] = "未知"
+        target: str, expression: str, healer: Optional[str] = None
     ):
         """应用治疗"""
         if not await self._check_dm_permission(interaction):
@@ -426,13 +438,23 @@ class CombatCommands(commands.Cog):
             await interaction.response.send_message("❌ 当前频道没有活跃的战斗", ephemeral=True)
             return
         
+        # 如果没有指定治疗者，使用当前回合的角色名称
+        if healer is None:
+            participants = await self.combat_manager.get_participants(combat.id)
+            if participants and combat.current_turn < len(participants):
+                healer = participants[combat.current_turn].name
+            else:
+                healer = interaction.user.display_name
+        
         # 解析治疗值
         try:
             if expression.isdigit():
                 healing = int(expression)
                 dice_result = f"固定治疗: {healing}"
             else:
-                result = await self.dice_roller.roll_dice(expression)
+                result = await self.dice_roller.roll_dice(
+                    expression, interaction.user.id, interaction.guild_id, interaction.channel_id
+                )
                 healing = result.total
                 dice_result = f"{expression}: {result.total} ({result.details})"
         except Exception as e:

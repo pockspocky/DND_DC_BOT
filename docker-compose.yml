@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  dnd-bot:
+    build: .
+    container_name: dnd-discord-bot
+    restart: unless-stopped
+    
+    # 环境变量配置
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - PROXY_URL=${PROXY_URL:-}
+      - PREFIX=${PREFIX:-!}
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      
+    # 数据卷挂载
+    volumes:
+      - ./data:/app/data
+      - ./dnd_bot.db:/app/dnd_bot.db
+      - ./logs:/app/logs
+      
+    # 网络配置
+    networks:
+      - dnd-network
+      
+    # 健康检查
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sqlite3; sqlite3.connect('dnd_bot.db').close()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+      
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+          
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  dnd-network:
+    driver: bridge
+
+volumes:
+  dnd-data:
+    driver: local 

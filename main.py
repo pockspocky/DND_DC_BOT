@@ -59,6 +59,7 @@ from discord import app_commands
 import logging
 from dotenv import load_dotenv
 from database import db_manager
+from scene_generator import scene_generator
 
 # 导入新的工具系统
 try:
@@ -408,7 +409,7 @@ async def help_command(interaction: discord.Interaction):
     """显示帮助信息"""
     try:
         # 立即确认交互，避免超时
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         
         embed = discord.Embed(
             title="🎲 DND Discord Bot 帮助",
@@ -469,6 +470,16 @@ async def help_command(interaction: discord.Interaction):
             inline=False
         )
         
+        # DM工具
+        embed.add_field(
+            name="🎭 DM工具",
+            value=(
+                "`/scene <描述>` - 生成场景描述\n"
+                "支持自定义长度和风格"
+            ),
+            inline=False
+        )
+        
         embed.add_field(
             name="💡 使用提示",
             value=(
@@ -508,12 +519,90 @@ async def echo(interaction: discord.Interaction, message: str):
     """重复消息"""
     await interaction.response.send_message(f'📢 {message}')
 
+@bot.tree.command(name='scene', description='生成D&D场景描述')
+@app_commands.describe(
+    description='英文场景描述',
+    length='描述长度(字符数)',
+    style='描述风格'
+)
+async def generate_scene(
+    interaction: discord.Interaction, 
+    description: str,
+    length: int = 100,
+    style: str = "描述性"
+):
+    """生成D&D场景描述"""
+    try:
+        # 立即确认交互，避免超时
+        await interaction.response.defer()
+        
+        # 验证参数
+        if not description.strip():
+            await interaction.followup.send("❌ 请提供场景描述", ephemeral=True)
+            return
+        
+        if length < 50 or length > 500:
+            await interaction.followup.send("❌ 长度必须在50-500字之间", ephemeral=True)
+            return
+        
+        if style not in scene_generator.get_available_styles():
+            await interaction.followup.send(f"❌ 风格必须是以下之一: {', '.join(scene_generator.get_available_styles())}", ephemeral=True)
+            return
+        
+        # 生成场景描述
+        scene_description = await scene_generator.generate_scene_description(
+            description, length, style
+        )
+        
+        if scene_description:
+            # 创建美观的嵌入消息
+            embed = discord.Embed(
+                title="🎭 D&D场景描述",
+                description=scene_description,
+                color=discord.Color.purple()
+            )
+            
+            embed.add_field(
+                name="📝 原始描述",
+                value=description,
+                inline=False
+            )
+            
+            embed.add_field(
+                name="⚙️ 生成设置",
+                value=f"**长度**: {length}字 **风格**: {style}\n**实际长度**: {len(scene_description)}字",
+                inline=False
+            )
+            
+            embed.set_footer(text="🎲 DM工具 | 由AI生成")
+            
+            # 发送结果
+            await interaction.followup.send(embed=embed)
+            
+            logger.info(f"用户 {interaction.user} 生成场景描述: {description[:50]}...")
+            
+        else:
+            await interaction.followup.send("❌ 场景描述生成失败，请稍后重试", ephemeral=True)
+            
+    except asyncio.TimeoutError:
+        logger.error("场景生成命令响应超时")
+        try:
+            await interaction.followup.send("❌ 生成场景描述超时，请重试", ephemeral=True)
+        except:
+            pass
+    except Exception as e:
+        logger.error(f"场景生成命令失败: {e}")
+        try:
+            await interaction.followup.send("❌ 生成场景描述失败，请稍后重试", ephemeral=True)
+        except:
+            pass
+
 @bot.tree.command(name='dbstats', description='显示数据库统计信息')
 async def database_stats(interaction: discord.Interaction):
     """显示数据库统计"""
     try:
         # 立即确认交互，避免超时
-        await interaction.response.defer(thinking=True)
+        await interaction.response.defer()
         
         stats = await asyncio.wait_for(
             db_manager.get_database_stats(),

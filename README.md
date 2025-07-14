@@ -32,6 +32,7 @@ cd DND_DC_BOT
 cp docker.env.example .env
 # 编辑.env文件，添加以下内容：
 # DISCORD_TOKEN=your_discord_bot_token
+# GEMINI_API_KEY=your_gemini_api_key
 # PROXY_URL=http://127.0.0.1:7890  # 如果需要代理
 
 # 3. 一键部署

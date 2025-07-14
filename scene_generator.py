@@ -13,9 +13,13 @@ class SceneGenerator:
     """场景描述生成器"""
     
     def __init__(self):
-        # 设置API密钥
-        os.environ['GEMINI_API_KEY'] = "AIzaSyATI4q2fKp0euRcN4jIYtbJrhJyW6GPUck"
-        self.client = genai.Client()
+        # 从环境变量获取API密钥
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            raise ValueError("请设置 GEMINI_API_KEY 环境变量")
+        
+        # 配置客户端
+        self.client = genai.Client(api_key=api_key)
         # 使用Gemini Flash模型
         self.model = "gemini-2.5-flash"
     

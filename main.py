@@ -475,7 +475,10 @@ async def help_command(interaction: discord.Interaction):
             name="🎭 DM工具",
             value=(
                 "`/scene <描述>` - 生成场景描述\n"
-                "支持自定义长度和风格"
+                "• 支持自定义长度(50-500字)\n"
+                "• 支持任意风格词汇\n"
+                "• 常用风格：描述性、神秘、紧张、恐怖、浪漫、幽默、史诗等\n"
+                "• 或输入自定义风格词汇"
             ),
             inline=False
         )
@@ -487,6 +490,7 @@ async def help_command(interaction: discord.Interaction):
                 "• 查询命令请使用英文名称\n"
                 "• 骰子命令支持复杂的参数组合\n"
                 "• 战斗系统需要DM权限或管理员权限\n"
+                "• 场景生成支持任意风格词汇（如：诗意、悲伤、激昂等）\n"
                 "• 使用 `/rh` 查看详细的骰子用法"
             ),
             inline=False
@@ -522,8 +526,8 @@ async def echo(interaction: discord.Interaction, message: str):
 @bot.tree.command(name='scene', description='生成D&D场景描述')
 @app_commands.describe(
     description='英文场景描述',
-    length='描述长度(字符数)',
-    style='描述风格'
+    length='描述长度(字符数，50-500)',
+    style='描述风格(支持任意风格词汇，如：神秘、恐怖、浪漫、幽默等)'
 )
 async def generate_scene(
     interaction: discord.Interaction, 
@@ -545,8 +549,13 @@ async def generate_scene(
             await interaction.followup.send("❌ 长度必须在50-500字之间", ephemeral=True)
             return
         
-        if style not in scene_generator.get_available_styles():
-            await interaction.followup.send(f"❌ 风格必须是以下之一: {', '.join(scene_generator.get_available_styles())}", ephemeral=True)
+        # 验证风格输入（允许任意风格词汇）
+        if not style or len(style.strip()) == 0:
+            await interaction.followup.send("❌ 请提供有效的风格描述", ephemeral=True)
+            return
+        
+        if len(style.strip()) > 20:
+            await interaction.followup.send("❌ 风格描述不能超过20个字符", ephemeral=True)
             return
         
         # 生成场景描述

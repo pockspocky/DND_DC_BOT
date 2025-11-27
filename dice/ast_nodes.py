@@ -110,16 +110,21 @@ class DieResult:
     
     def __str__(self) -> str:
         """Format die result for display"""
-        value_str = str(self.final_value)
+        # Show rerolled dice with original -> final notation
+        if self.rerolled:
+            value_str = f"~~{self.original_value}~~→{self.final_value}"
+        else:
+            value_str = str(self.final_value)
         
-        # Mark special values
-        if self.is_max:
-            value_str = f"**{value_str}**"  # Bold for max
-        elif self.is_min:
-            value_str = f"*{value_str}*"    # Italic for min
+        # Mark special values (only if not rerolled)
+        if not self.rerolled:
+            if self.is_max:
+                value_str = f"**{value_str}**"  # Bold for max
+            elif self.is_min:
+                value_str = f"*{value_str}*"    # Italic for min
         
         # Mark clamped dice
-        if self.clamped and self.original_value != self.final_value:
+        if self.clamped and self.original_value != self.final_value and not self.rerolled:
             value_str = f"{value_str}↑" if self.final_value > self.original_value else f"{value_str}↓"
         
         # Strikethrough dropped dice

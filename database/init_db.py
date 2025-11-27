@@ -1,22 +1,22 @@
 """
-数据库初始化脚本
-用于创建数据库结构和初始数据
+Database Initialization Script
+Used to create database structure and initial data
 """
 import asyncio
 import logging
 import sys
 import os
 
-# 添加项目根目录到Python路径
+# Add project root directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# 尝试相对导入，如果失败则使用绝对导入
+# Try relative import, fall back to absolute import if it fails
 try:
     from .database import db_manager
 except ImportError:
     from database.database import db_manager
 
-# 配置日志（仅在直接运行时）
+# Configure logging (only when run directly)
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
@@ -29,38 +29,38 @@ if __name__ == "__main__":
 logger = logging.getLogger(__name__)
 
 async def initialize_database():
-    """初始化数据库"""
+    """Initialize database"""
     try:
-        logger.info("开始初始化数据库...")
+        logger.info("Starting database initialization...")
         
-        # 连接数据库
+        # Connect to database
         await db_manager.connect()
         
-        # 初始化数据库结构
+        # Initialize database structure
         await db_manager.initialize_database()
         
-        # 插入初始数据
+        # Insert initial data
         await insert_initial_data()
         
-        logger.info("数据库初始化完成")
+        logger.info("Database initialization complete")
         
     except Exception as e:
-        logger.error(f"数据库初始化失败: {e}")
+        logger.error(f"Database initialization failed: {e}")
         raise
     finally:
         await db_manager.disconnect()
 
 async def insert_initial_data():
-    """插入初始数据"""
-    logger.info("正在插入初始数据...")
+    """Insert initial data"""
+    logger.info("Inserting initial data...")
     
-    # 插入基础装备数据
+    # Insert basic equipment data
     basic_equipment = [
-        ("短剑", "武器", "简单近战武器", "common", "一把简单的短剑", 2.0, 1000, 0, "1d6", "piercing", "轻型,精准", False),
-        ("长剑", "武器", "军用近战武器", "common", "一把标准的长剑", 3.0, 1500, 0, "1d8", "slashing", "多用途", False),
-        ("皮甲", "防具", "轻甲", "common", "简单的皮质护甲", 10.0, 1000, 11, None, None, None, False),
-        ("链甲", "防具", "重甲", "common", "金属链环编织的护甲", 20.0, 5000, 16, None, None, None, False),
-        ("盾牌", "防具", "盾牌", "common", "木质盾牌", 6.0, 1000, 2, None, None, None, False),
+        ("Shortsword", "Weapon", "Simple Melee Weapon", "common", "A simple shortsword", 2.0, 1000, 0, "1d6", "piercing", "Light, Finesse", False),
+        ("Longsword", "Weapon", "Martial Melee Weapon", "common", "A standard longsword", 3.0, 1500, 0, "1d8", "slashing", "Versatile", False),
+        ("Leather Armor", "Armor", "Light Armor", "common", "Simple leather armor", 10.0, 1000, 11, None, None, None, False),
+        ("Chain Mail", "Armor", "Heavy Armor", "common", "Armor made of interlocking metal rings", 20.0, 5000, 16, None, None, None, False),
+        ("Shield", "Armor", "Shield", "common", "Wooden shield", 6.0, 1000, 2, None, None, None, False),
     ]
     
     for equipment in basic_equipment:
@@ -72,14 +72,14 @@ async def insert_initial_data():
                 equipment
             )
         except Exception as e:
-            logger.warning(f"插入装备数据失败: {e}")
+            logger.warning(f"Failed to insert equipment data: {e}")
     
-    # 插入基础法术数据
+    # Insert basic spell data
     basic_spells = [
-        ("魔法飞弹", 1, "塑能", "1个动作", "120英尺", "V,S", "瞬间", "你创造三枚闪光的魔法飞弹。", "使用更高环位时，每高一环多一枚飞弹。", "法师,术士", "PHB"),
-        ("治疗轻伤", 1, "塑能", "1个动作", "接触", "V,S", "瞬间", "你接触的生物恢复1d4+你的法术调整值点生命值。", "使用更高环位时，每高一环多恢复1d4点生命值。", "牧师,德鲁伊,圣武士,游侠", "PHB"),
-        ("火球术", 3, "塑能", "1个动作", "150英尺", "V,S,M", "瞬间", "在你指定的范围内爆炸出一颗火球。", "使用更高环位时，每高一环多造成1d6点伤害。", "法师,术士", "PHB"),
-        ("闪电束", 3, "塑能", "1个动作", "自身（100英尺线形）", "V,S,M", "瞬间", "一道闪电从你身前划过。", "使用更高环位时，每高一环多造成1d6点伤害。", "法师,术士", "PHB"),
+        ("Magic Missile", 1, "Evocation", "1 action", "120 feet", "V,S", "Instantaneous", "You create three glowing darts of magical force.", "When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st.", "Wizard, Sorcerer", "PHB"),
+        ("Cure Wounds", 1, "Evocation", "1 action", "Touch", "V,S", "Instantaneous", "A creature you touch regains a number of hit points equal to 1d4 + your spellcasting ability modifier.", "When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d4 for each slot level above 1st.", "Cleric, Druid, Paladin, Ranger", "PHB"),
+        ("Fireball", 3, "Evocation", "1 action", "150 feet", "V,S,M", "Instantaneous", "A bright streak flashes from your pointing finger to a point you choose within range and then blossoms with a low roar into an explosion of flame.", "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd.", "Wizard, Sorcerer", "PHB"),
+        ("Lightning Bolt", 3, "Evocation", "1 action", "Self (100-foot line)", "V,S,M", "Instantaneous", "A stroke of lightning forming a line 100 feet long and 5 feet wide blasts out from you in a direction you choose.", "When you cast this spell using a spell slot of 4th level or higher, the damage increases by 1d6 for each slot level above 3rd.", "Wizard, Sorcerer", "PHB"),
     ]
     
     for spell in basic_spells:
@@ -91,13 +91,13 @@ async def insert_initial_data():
                 spell
             )
         except Exception as e:
-            logger.warning(f"插入法术数据失败: {e}")
+            logger.warning(f"Failed to insert spell data: {e}")
     
-    # 插入基础怪物数据
+    # Insert basic monster data
     basic_monsters = [
-        ("哥布林", "小型", "人型生物", "混乱邪恶", 15, 7, "2d6", "30英尺", 8, 14, 10, 10, 8, 8, None, "潜行+6", None, None, None, "黑暗视觉60英尺", "通用语,哥布林语", "1/4", 50, "灵巧脱逃", "弯刀攻击,短弓攻击", None, None, "MM"),
-        ("兽人", "中型", "人型生物", "混乱邪恶", 13, 15, "2d8+2", "30英尺", 16, 12, 14, 7, 11, 10, None, "威吓+2", None, None, None, "黑暗视觉60英尺", "通用语,兽人语", "1/2", 100, "残暴", "巨斧攻击,标枪攻击", None, None, "MM"),
-        ("巨狼", "大型", "野兽", "无阵营", 14, 37, "5d10+15", "50英尺", 17, 15, 15, 3, 12, 7, None, "察觉+3,潜行+4", None, None, None, "敏锐听觉和嗅觉", None, "1", 200, "扑击", "撕咬", None, None, "MM"),
+        ("Goblin", "Small", "Humanoid", "Chaotic Evil", 15, 7, "2d6", "30 ft.", 8, 14, 10, 10, 8, 8, None, "Stealth +6", None, None, None, "Darkvision 60 ft.", "Common, Goblin", "1/4", 50, "Nimble Escape", "Scimitar, Shortbow", None, None, "MM"),
+        ("Orc", "Medium", "Humanoid", "Chaotic Evil", 13, 15, "2d8+2", "30 ft.", 16, 12, 14, 7, 11, 10, None, "Intimidation +2", None, None, None, "Darkvision 60 ft.", "Common, Orc", "1/2", 100, "Aggressive", "Greataxe, Javelin", None, None, "MM"),
+        ("Dire Wolf", "Large", "Beast", "Unaligned", 14, 37, "5d10+15", "50 ft.", 17, 15, 15, 3, 12, 7, None, "Perception +3, Stealth +4", None, None, None, "Keen Hearing and Smell", None, "1", 200, "Pack Tactics", "Bite", None, None, "MM"),
     ]
     
     for monster in basic_monsters:
@@ -112,10 +112,10 @@ async def insert_initial_data():
                 monster
             )
         except Exception as e:
-            logger.warning(f"插入怪物数据失败: {e}")
+            logger.warning(f"Failed to insert monster data: {e}")
     
-    logger.info("初始数据插入完成")
+    logger.info("Initial data insertion complete")
 
 if __name__ == "__main__":
-    # 直接运行此脚本来初始化数据库
+    # Run this script directly to initialize the database
     asyncio.run(initialize_database()) 

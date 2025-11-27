@@ -1,6 +1,6 @@
 """
-D&D 5e查询命令系统
-简化的法术、怪物、技能查询功能
+D&D 5e Query Command System
+Simplified spell, monster, and skill query functionality
 """
 import discord
 from discord.ext import commands
@@ -9,7 +9,7 @@ import logging
 from .api_client import DnDAPIClient
 
 class QueryCommands(commands.Cog):
-    """D&D查询命令组 - 法术、怪物、技能查询"""
+    """D&D Query Command Group - Spell, Monster, and Skill Queries"""
     
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -17,114 +17,114 @@ class QueryCommands(commands.Cog):
         self.logger = logging.getLogger(__name__)
     
     async def cog_load(self):
-        """启动API客户端"""
+        """Start API client"""
         await self.api_client.start()
-        self.logger.info("查询命令模块已加载")
+        self.logger.info("Query command module loaded")
     
     async def cog_unload(self):
-        """关闭API客户端"""
+        """Close API client"""
         await self.api_client.close()
-        self.logger.info("查询命令模块已卸载")
+        self.logger.info("Query command module unloaded")
     
     def _format_spell_embed(self, spell_data: Dict) -> discord.Embed:
-        """格式化法术信息为Discord嵌入"""
+        """Format spell information as Discord embed"""
         embed = discord.Embed(
             title=f"📜 {spell_data['name']}",
             description="\n".join(spell_data['desc']),
-            color=0x8B4513  # 棕色
+            color=0x8B4513  # Brown
         )
         
-        # 基本信息
+        # Basic information
         embed.add_field(
-            name="基本信息",
+            name="Basic Info",
             value=(
-                f"**等级**: {spell_data['level']}\n"
-                f"**学派**: {spell_data['school']['name']}\n"
-                f"**施法时间**: {spell_data['casting_time']}\n"
-                f"**射程**: {spell_data['range']}\n"
-                f"**持续时间**: {spell_data['duration']}\n"
-                f"**专注**: {'是' if spell_data['concentration'] else '否'}\n"
-                f"**仪式**: {'是' if spell_data['ritual'] else '否'}"
+                f"**Level**: {spell_data['level']}\n"
+                f"**School**: {spell_data['school']['name']}\n"
+                f"**Casting Time**: {spell_data['casting_time']}\n"
+                f"**Range**: {spell_data['range']}\n"
+                f"**Duration**: {spell_data['duration']}\n"
+                f"**Concentration**: {'Yes' if spell_data['concentration'] else 'No'}\n"
+                f"**Ritual**: {'Yes' if spell_data['ritual'] else 'No'}"
             ),
             inline=True
         )
         
-        # 成分
+        # Components
         components = []
         if 'V' in spell_data['components']:
-            components.append("语言(V)")
+            components.append("Verbal (V)")
         if 'S' in spell_data['components']:
-            components.append("姿势(S)")
+            components.append("Somatic (S)")
         if 'M' in spell_data['components']:
-            material = spell_data.get('material', '材料')
-            components.append(f"材料(M): {material}")
+            material = spell_data.get('material', 'Material')
+            components.append(f"Material (M): {material}")
         
         embed.add_field(
-            name="成分",
+            name="Components",
             value="\n".join(components),
             inline=True
         )
         
-        # 伤害信息
+        # Damage information
         if spell_data.get('damage'):
             damage_info = []
             damage = spell_data['damage']
             
             if 'damage_at_slot_level' in damage:
-                damage_info.append(f"**伤害类型**: {damage['damage_type']['name']}")
+                damage_info.append(f"**Damage Type**: {damage['damage_type']['name']}")
                 damage_levels = damage['damage_at_slot_level']
                 for level, dice in damage_levels.items():
-                    damage_info.append(f"**{level}环**: {dice}")
+                    damage_info.append(f"**Level {level}**: {dice}")
             
             if damage_info:
                 embed.add_field(
-                    name="伤害",
+                    name="Damage",
                     value="\n".join(damage_info),
                     inline=False
                 )
         
-        # 豁免检定
+        # Saving throw
         if spell_data.get('dc'):
             dc_info = spell_data['dc']
             embed.add_field(
-                name="豁免检定",
-                value=f"**类型**: {dc_info['dc_type']['name']}\n**结果**: {dc_info['dc_success']}",
+                name="Saving Throw",
+                value=f"**Type**: {dc_info['dc_type']['name']}\n**On Success**: {dc_info['dc_success']}",
                 inline=True
             )
         
-        # 影响区域
+        # Area of effect
         if spell_data.get('area_of_effect'):
             aoe = spell_data['area_of_effect']
             embed.add_field(
-                name="影响区域",
-                value=f"**形状**: {aoe['type']}\n**大小**: {aoe['size']}英尺",
+                name="Area of Effect",
+                value=f"**Shape**: {aoe['type']}\n**Size**: {aoe['size']} feet",
                 inline=True
             )
         
-        # 职业信息
+        # Class information
         if spell_data.get('classes'):
             class_names = [cls['name'] for cls in spell_data['classes']]
             embed.add_field(
-                name="可用职业",
+                name="Available Classes",
                 value=", ".join(class_names),
                 inline=False
             )
         
-        # 高环施法
+        # At higher levels
         if spell_data.get('higher_level'):
             embed.add_field(
-                name="高环施法",
+                name="At Higher Levels",
                 value="\n".join(spell_data['higher_level']),
                 inline=False
             )
         
-        embed.set_footer(text="数据来源: D&D 5e SRD API")
+        embed.set_footer(text="Data Source: D&D 5e SRD API")
         return embed
     
-    @discord.app_commands.command(name="sp", description="查询D&D 5e法术信息")
-    @discord.app_commands.describe(name="法术名称（英文）")
+    @discord.app_commands.command(name="sp", description="Query D&D 5e spell information")
+    @discord.app_commands.describe(name="Spell name (English)")
     async def spell(self, interaction: discord.Interaction, name: str):
-        """查询法术信息"""
+        """Query spell information"""
         try:
             await interaction.response.defer()
             
@@ -132,13 +132,13 @@ class QueryCommands(commands.Cog):
             
             if not spell_data:
                 embed = discord.Embed(
-                    title="❌ 未找到法术",
-                    description=f"未找到名为 `{name}` 的法术。请检查拼写或尝试其他关键词。",
+                    title="❌ Spell Not Found",
+                    description=f"Could not find spell named `{name}`. Please check spelling or try different keywords.",
                     color=0xFF0000
                 )
                 embed.add_field(
-                    name="提示",
-                    value="• 请使用英文名称\n• 检查拼写是否正确\n• 尝试使用不同的关键词",
+                    name="Tips",
+                    value="• Use English spell names\n• Check spelling\n• Try different keywords",
                     inline=False
                 )
                 await interaction.followup.send(embed=embed)
@@ -148,51 +148,51 @@ class QueryCommands(commands.Cog):
             await interaction.followup.send(embed=embed)
             
         except Exception as e:
-            self.logger.error(f"法术查询错误: {e}")
-            # 简化的错误处理
+            self.logger.error(f"Spell query error: {e}")
+            # Simplified error handling
             try:
                 error_embed = discord.Embed(
-                    title="❌ 查询失败",
-                    description="查询过程中发生错误，请稍后重试",
+                    title="❌ Query Failed",
+                    description="An error occurred during the query, please try again later",
                     color=0xFF0000
                 )
                 await interaction.followup.send(embed=error_embed, ephemeral=True)
             except Exception:
-                # 静默处理，避免进一步错误
+                # Silent handling to avoid further errors
                 pass
     
     def _format_monster_embed(self, monster_data: Dict) -> discord.Embed:
-        """格式化怪物信息为Discord嵌入"""
+        """Format monster information as Discord embed"""
         embed = discord.Embed(
             title=f"🐉 {monster_data['name']}",
             description=f"{monster_data['size']} {monster_data['type']}, {monster_data['alignment']}",
             color=0xDC143C
         )
         
-        # 基本信息
+        # Basic information
         ac_info = f"{monster_data['armor_class'][0]['value']}"
         if len(monster_data['armor_class']) > 0 and 'type' in monster_data['armor_class'][0]:
             ac_info += f" ({monster_data['armor_class'][0]['type']})"
             
-        # 计算先攻修正
+        # Calculate initiative modifier
         dex_modifier = (monster_data['dexterity'] - 10) // 2
         initiative = f"{dex_modifier:+d}"
         
         embed.add_field(
-            name="基本信息",
+            name="Basic Info",
             value=(
                 f"**AC**: {ac_info}\n"
                 f"**HP**: {monster_data['hit_points']} ({monster_data['hit_points_roll']})\n"
-                f"**先攻**: {initiative}\n"
+                f"**Initiative**: {initiative}\n"
                 f"**CR**: {monster_data['challenge_rating']}\n"
                 f"**XP**: {monster_data['xp']:,}"
             ),
             inline=True
         )
         
-        # 属性值
+        # Ability scores
         embed.add_field(
-            name="属性",
+            name="Abilities",
             value=(
                 f"**STR**: {monster_data['strength']} ({(monster_data['strength'] - 10) // 2:+d})\n"
                 f"**DEX**: {monster_data['dexterity']} ({(monster_data['dexterity'] - 10) // 2:+d})\n"
@@ -204,18 +204,18 @@ class QueryCommands(commands.Cog):
             inline=True
         )
         
-        # 速度
+        # Speed
         speed_info = []
         for speed_type, speed_value in monster_data['speed'].items():
             speed_info.append(f"{speed_type}: {speed_value}")
         
         embed.add_field(
-            name="速度",
+            name="Speed",
             value="\n".join(speed_info),
             inline=True
         )
         
-        # 豁免检定
+        # Saving throws
         if monster_data.get('proficiencies'):
             saving_throws = []
             skills = []
@@ -231,197 +231,197 @@ class QueryCommands(commands.Cog):
             
             if saving_throws:
                 embed.add_field(
-                    name="豁免检定",
+                    name="Saving Throws",
                     value="\n".join(saving_throws),
                     inline=True
                 )
             
             if skills:
                 embed.add_field(
-                    name="技能",
+                    name="Skills",
                     value="\n".join(skills),
                     inline=True
                 )
         
-        # 抗性/免疫
+        # Resistances/Immunities
         resistances = []
         if monster_data.get('damage_resistances'):
-            resistances.append(f"**抗性**: {', '.join(monster_data['damage_resistances'])}")
+            resistances.append(f"**Resistances**: {', '.join(monster_data['damage_resistances'])}")
         if monster_data.get('damage_immunities'):
-            resistances.append(f"**免疫**: {', '.join(monster_data['damage_immunities'])}")
+            resistances.append(f"**Immunities**: {', '.join(monster_data['damage_immunities'])}")
         if monster_data.get('damage_vulnerabilities'):
-            resistances.append(f"**弱点**: {', '.join(monster_data['damage_vulnerabilities'])}")
+            resistances.append(f"**Vulnerabilities**: {', '.join(monster_data['damage_vulnerabilities'])}")
         if monster_data.get('condition_immunities'):
             condition_names = [cond['name'] for cond in monster_data['condition_immunities']]
-            resistances.append(f"**状态免疫**: {', '.join(condition_names)}")
+            resistances.append(f"**Condition Immunities**: {', '.join(condition_names)}")
         
         if resistances:
             embed.add_field(
-                name="抗性/免疫",
+                name="Resistances/Immunities",
                 value="\n".join(resistances),
                 inline=False
             )
         
-        # 感官
+        # Senses
         if monster_data.get('senses'):
             senses_info = []
             for sense, value in monster_data['senses'].items():
                 if sense == 'passive_perception':
-                    senses_info.append(f"**被动察觉**: {value}")
+                    senses_info.append(f"**Passive Perception**: {value}")
                 else:
                     senses_info.append(f"**{sense}**: {value}")
             
             if senses_info:
                 embed.add_field(
-                    name="感官",
+                    name="Senses",
                     value="\n".join(senses_info),
                     inline=True
                 )
         
-        # 语言
+        # Languages
         if monster_data.get('languages'):
             embed.add_field(
-                name="语言",
+                name="Languages",
                 value=monster_data['languages'],
                 inline=True
             )
         
-        # 特殊能力
+        # Special abilities
         if monster_data.get('special_abilities'):
             abilities_text = []
             for ability in monster_data['special_abilities']:
                 name = ability['name']
-                desc = ability.get('desc', '无描述')
-                # 更合理的描述长度限制
+                desc = ability.get('desc', 'No description')
+                # Reasonable description length limit
                 if len(desc) > 200:
                     desc = desc[:200] + "..."
                 abilities_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度 (Discord限制是1024字符)
+            # Limit total field length (Discord limit is 1024 characters)
             abilities_value = "\n".join(abilities_text)
             if len(abilities_value) > 1020:
                 abilities_value = abilities_value[:1020] + "..."
             
             if abilities_text:
                 embed.add_field(
-                    name="特殊能力",
+                    name="Special Abilities",
                     value=abilities_value,
                     inline=False
                 )
         
-        # 攻击动作
+        # Actions
         if monster_data.get('actions'):
             actions_text = []
             for action in monster_data['actions']:
                 name = action['name']
-                desc = action.get('desc', '无描述')
-                # 更合理的描述长度限制
+                desc = action.get('desc', 'No description')
+                # Reasonable description length limit
                 if len(desc) > 250:
                     desc = desc[:250] + "..."
                 actions_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度 (Discord限制是1024字符)
+            # Limit total field length (Discord limit is 1024 characters)
             actions_value = "\n".join(actions_text)
             if len(actions_value) > 1020:
                 actions_value = actions_value[:1020] + "..."
             
             if actions_text:
                 embed.add_field(
-                    name="攻击动作",
+                    name="Actions",
                     value=actions_value,
                     inline=False
                 )
         
-        # 传奇动作
+        # Legendary actions
         if monster_data.get('legendary_actions'):
             legendary_text = []
             for action in monster_data['legendary_actions']:
                 name = action['name']
-                desc = action.get('desc', '无描述')
-                # 更合理的描述长度限制
+                desc = action.get('desc', 'No description')
+                # Reasonable description length limit
                 if len(desc) > 200:
                     desc = desc[:200] + "..."
                 legendary_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度 (Discord限制是1024字符)
+            # Limit total field length (Discord limit is 1024 characters)
             legendary_value = "\n".join(legendary_text)
             if len(legendary_value) > 1020:
                 legendary_value = legendary_value[:1020] + "..."
             
             if legendary_text:
                 embed.add_field(
-                    name="传奇动作",
+                    name="Legendary Actions",
                     value=legendary_value,
                     inline=False
                 )
         
-        # 反应动作
+        # Reactions
         if monster_data.get('reactions'):
             reactions_text = []
             for reaction in monster_data['reactions']:
                 name = reaction['name']
-                desc = reaction.get('desc', '无描述')
-                # 更合理的描述长度限制
+                desc = reaction.get('desc', 'No description')
+                # Reasonable description length limit
                 if len(desc) > 200:
                     desc = desc[:200] + "..."
                 reactions_text.append(f"**{name}**: {desc}")
             
-            # 限制字段总长度 (Discord限制是1024字符)
+            # Limit total field length (Discord limit is 1024 characters)
             reactions_value = "\n".join(reactions_text)
             if len(reactions_value) > 1020:
                 reactions_value = reactions_value[:1020] + "..."
             
             if reactions_text:
                 embed.add_field(
-                    name="反应动作",
+                    name="Reactions",
                     value=reactions_value,
                     inline=False
                 )
         
-        embed.set_footer(text="数据来源: D&D 5e SRD API")
+        embed.set_footer(text="Data Source: D&D 5e SRD API")
         return embed
     
     def _calculate_embed_length(self, embed: discord.Embed) -> int:
-        """计算嵌入消息的总字符长度"""
+        """Calculate total character length of embed message"""
         total_length = 0
         
-        # 标题和描述
+        # Title and description
         if hasattr(embed, 'title') and embed.title:
             total_length += len(str(embed.title))
         if hasattr(embed, 'description') and embed.description:
             total_length += len(str(embed.description))
         
-        # 所有字段
+        # All fields
         for field in embed.fields:
             total_length += len(str(field.name)) + len(str(field.value))
         
         return total_length
     
     async def _send_monster_in_thread(self, interaction: discord.Interaction, monster_data: Dict, monster_name: str):
-        """在Thread中分拆发送怪物信息"""
+        """Send monster information split across thread messages"""
         try:
-            # 检查是否在服务器频道中（Thread只能在服务器频道中创建）
+            # Check if in guild channel (threads can only be created in guild channels)
             if interaction.guild is None:
-                self.logger.info(f"用户在私信中查询怪物 {monster_data['name']}，使用普通嵌入消息")
+                self.logger.info(f"User queried monster {monster_data['name']} in DM, using regular embed")
                 embed = self._format_monster_embed(monster_data)
                 await interaction.edit_original_response(embed=embed)
                 return
             
-            # 检查机器人是否有创建Thread的权限
+            # Check if bot has permission to create threads
             if not interaction.app_permissions.create_public_threads:
-                self.logger.warning("机器人缺少创建Thread权限，使用普通嵌入消息")
+                self.logger.warning("Bot lacks thread creation permission, using regular embed")
                 embed = self._format_monster_embed(monster_data)
                 await interaction.edit_original_response(embed=embed)
                 return
             
-            # 先发送一个简要的回复消息
+            # Send a brief summary message first
             summary_embed = discord.Embed(
                 title=f"🐉 {monster_data['name']}",
-                description=f"{monster_data['size']} {monster_data['type']}, {monster_data['alignment']}\n\n📋 **信息过于详细，已在下方Thread中展开显示**",
+                description=f"{monster_data['size']} {monster_data['type']}, {monster_data['alignment']}\n\n📋 **Detailed information displayed in thread below**",
                 color=0xDC143C
             )
             
-            # 基本信息
+            # Basic information
             ac_info = f"{monster_data['armor_class'][0]['value']}"
             if len(monster_data['armor_class']) > 0 and 'type' in monster_data['armor_class'][0]:
                 ac_info += f" ({monster_data['armor_class'][0]['type']})"
@@ -430,60 +430,60 @@ class QueryCommands(commands.Cog):
             initiative = f"{dex_modifier:+d}"
             
             summary_embed.add_field(
-                name="核心数据",
+                name="Core Stats",
                 value=(
                     f"**AC**: {ac_info} | **HP**: {monster_data['hit_points']}\n"
-                    f"**先攻**: {initiative} | **CR**: {monster_data['challenge_rating']}\n"
+                    f"**Initiative**: {initiative} | **CR**: {monster_data['challenge_rating']}\n"
                     f"**XP**: {monster_data['xp']:,}"
                 ),
                 inline=False
             )
             
-            summary_embed.set_footer(text="详细信息请查看下方Thread")
+            summary_embed.set_footer(text="See thread below for detailed information")
             
-            # 使用edit_original_response发送摘要消息，这样消息会有完整的guild信息
+            # Use edit_original_response to send summary, ensuring message has full guild info
             await interaction.edit_original_response(embed=summary_embed)
             
-            # 等待一小段时间确保消息完全发送
+            # Wait briefly to ensure message is fully sent
             import asyncio
             await asyncio.sleep(0.5)
             
-            # 获取原始响应消息，这个消息有完整的guild信息
+            # Get original response message with full guild info
             original_message = await interaction.original_response()
             
-            # 创建Thread
+            # Create thread
             thread = await original_message.create_thread(
-                name=f"🐉 {monster_data['name']} - 详细信息",
-                auto_archive_duration=1440  # 24小时后自动归档
+                name=f"🐉 {monster_data['name']} - Details",
+                auto_archive_duration=1440  # Auto-archive after 24 hours
             )
             
-            # 在Thread中发送详细信息
+            # Send detailed information in thread
             await self._send_detailed_monster_info(thread, monster_data)
             
         except discord.Forbidden:
-            self.logger.error("创建Thread失败: 权限不足")
+            self.logger.error("Thread creation failed: Insufficient permissions")
             embed = self._format_monster_embed(monster_data)
             await interaction.edit_original_response(embed=embed)
         except discord.HTTPException as e:
-            self.logger.error(f"创建Thread失败: Discord API错误 - {e}")
+            self.logger.error(f"Thread creation failed: Discord API error - {e}")
             embed = self._format_monster_embed(monster_data)
             await interaction.edit_original_response(embed=embed)
         except Exception as e:
-            self.logger.error(f"创建Thread失败: {e}")
-            # 如果Thread创建失败，回退到普通嵌入消息
+            self.logger.error(f"Thread creation failed: {e}")
+            # Fall back to regular embed if thread creation fails
             embed = self._format_monster_embed(monster_data)
             await interaction.edit_original_response(embed=embed)
     
     async def _send_detailed_monster_info(self, thread, monster_data: Dict):
-        """在Thread中发送详细的怪物信息"""
+        """Send detailed monster information in thread"""
         
-        # 1. 基本信息和属性
+        # 1. Basic information and abilities
         basic_embed = discord.Embed(
-            title="📊 基本信息与属性",
+            title="📊 Basic Info & Abilities",
             color=0xDC143C
         )
         
-        # 基本信息
+        # Basic information
         ac_info = f"{monster_data['armor_class'][0]['value']}"
         if len(monster_data['armor_class']) > 0 and 'type' in monster_data['armor_class'][0]:
             ac_info += f" ({monster_data['armor_class'][0]['type']})"
@@ -492,20 +492,20 @@ class QueryCommands(commands.Cog):
         initiative = f"{dex_modifier:+d}"
         
         basic_embed.add_field(
-            name="基本信息",
+            name="Basic Info",
             value=(
                 f"**AC**: {ac_info}\n"
                 f"**HP**: {monster_data['hit_points']} ({monster_data['hit_points_roll']})\n"
-                f"**先攻**: {initiative}\n"
+                f"**Initiative**: {initiative}\n"
                 f"**CR**: {monster_data['challenge_rating']}\n"
                 f"**XP**: {monster_data['xp']:,}"
             ),
             inline=True
         )
         
-        # 属性值
+        # Ability scores
         basic_embed.add_field(
-            name="六项属性",
+            name="Ability Scores",
             value=(
                 f"**STR**: {monster_data['strength']} ({(monster_data['strength'] - 10) // 2:+d})\n"
                 f"**DEX**: {monster_data['dexterity']} ({(monster_data['dexterity'] - 10) // 2:+d})\n"
@@ -517,26 +517,26 @@ class QueryCommands(commands.Cog):
             inline=True
         )
         
-        # 速度
+        # Speed
         speed_info = []
         for speed_type, speed_value in monster_data['speed'].items():
             speed_info.append(f"{speed_type}: {speed_value}")
         
         basic_embed.add_field(
-            name="移动速度",
+            name="Speed",
             value="\n".join(speed_info),
             inline=True
         )
         
         await thread.send(embed=basic_embed)
         
-        # 2. 技能、豁免和抗性
+        # 2. Skills, saves, and defenses
         skills_embed = discord.Embed(
-            title="🎯 技能与防御",
+            title="🎯 Skills & Defenses",
             color=0xDC143C
         )
         
-        # 豁免检定和技能
+        # Saving throws and skills
         if monster_data.get('proficiencies'):
             saving_throws = []
             skills = []
@@ -552,74 +552,74 @@ class QueryCommands(commands.Cog):
             
             if saving_throws:
                 skills_embed.add_field(
-                    name="豁免检定",
+                    name="Saving Throws",
                     value="\n".join(saving_throws),
                     inline=True
                 )
             
             if skills:
                 skills_embed.add_field(
-                    name="技能熟练",
+                    name="Skill Proficiencies",
                     value="\n".join(skills),
                     inline=True
                 )
         
-        # 抗性/免疫
+        # Resistances/Immunities
         resistances = []
         if monster_data.get('damage_resistances'):
-            resistances.append(f"**抗性**: {', '.join(monster_data['damage_resistances'])}")
+            resistances.append(f"**Resistances**: {', '.join(monster_data['damage_resistances'])}")
         if monster_data.get('damage_immunities'):
-            resistances.append(f"**免疫**: {', '.join(monster_data['damage_immunities'])}")
+            resistances.append(f"**Immunities**: {', '.join(monster_data['damage_immunities'])}")
         if monster_data.get('damage_vulnerabilities'):
-            resistances.append(f"**弱点**: {', '.join(monster_data['damage_vulnerabilities'])}")
+            resistances.append(f"**Vulnerabilities**: {', '.join(monster_data['damage_vulnerabilities'])}")
         if monster_data.get('condition_immunities'):
             condition_names = [cond['name'] for cond in monster_data['condition_immunities']]
-            resistances.append(f"**状态免疫**: {', '.join(condition_names)}")
+            resistances.append(f"**Condition Immunities**: {', '.join(condition_names)}")
         
         if resistances:
             skills_embed.add_field(
-                name="抗性/免疫",
+                name="Resistances/Immunities",
                 value="\n".join(resistances),
                 inline=False
             )
         
-        # 感官和语言
+        # Senses and languages
         if monster_data.get('senses'):
             senses_info = []
             for sense, value in monster_data['senses'].items():
                 if sense == 'passive_perception':
-                    senses_info.append(f"**被动察觉**: {value}")
+                    senses_info.append(f"**Passive Perception**: {value}")
                 else:
                     senses_info.append(f"**{sense}**: {value}")
             
             if senses_info:
                 skills_embed.add_field(
-                    name="感官",
+                    name="Senses",
                     value="\n".join(senses_info),
                     inline=True
                 )
         
         if monster_data.get('languages'):
             skills_embed.add_field(
-                name="语言",
+                name="Languages",
                 value=monster_data['languages'],
                 inline=True
             )
         
-        # 只有当有内容时才发送
+        # Only send if there's content
         if skills_embed.fields:
             await thread.send(embed=skills_embed)
         
-        # 3. 特殊能力
+        # 3. Special abilities
         if monster_data.get('special_abilities'):
             abilities_embed = discord.Embed(
-                title="✨ 特殊能力",
+                title="✨ Special Abilities",
                 color=0xDC143C
             )
             
             for ability in monster_data['special_abilities']:
                 name = ability['name']
-                desc = ability.get('desc', '无描述')
+                desc = ability.get('desc', 'No description')
                 
                 abilities_embed.add_field(
                     name=name,
@@ -629,16 +629,16 @@ class QueryCommands(commands.Cog):
             
             await thread.send(embed=abilities_embed)
         
-        # 4. 攻击动作
+        # 4. Actions
         if monster_data.get('actions'):
             actions_embed = discord.Embed(
-                title="⚔️ 攻击动作",
+                title="⚔️ Actions",
                 color=0xDC143C
             )
             
             for action in monster_data['actions']:
                 name = action['name']
-                desc = action.get('desc', '无描述')
+                desc = action.get('desc', 'No description')
                 
                 actions_embed.add_field(
                     name=name,
@@ -648,16 +648,16 @@ class QueryCommands(commands.Cog):
             
             await thread.send(embed=actions_embed)
         
-        # 5. 传奇动作
+        # 5. Legendary actions
         if monster_data.get('legendary_actions'):
             legendary_embed = discord.Embed(
-                title="👑 传奇动作",
-                color=0xFFD700  # 金色
+                title="👑 Legendary Actions",
+                color=0xFFD700  # Gold
             )
             
             for action in monster_data['legendary_actions']:
                 name = action['name']
-                desc = action.get('desc', '无描述')
+                desc = action.get('desc', 'No description')
                 
                 legendary_embed.add_field(
                     name=name,
@@ -667,16 +667,16 @@ class QueryCommands(commands.Cog):
             
             await thread.send(embed=legendary_embed)
         
-        # 6. 反应动作
+        # 6. Reactions
         if monster_data.get('reactions'):
             reactions_embed = discord.Embed(
-                title="🛡️ 反应动作",
-                color=0x4169E1  # 皇家蓝
+                title="🛡️ Reactions",
+                color=0x4169E1  # Royal blue
             )
             
             for reaction in monster_data['reactions']:
                 name = reaction['name']
-                desc = reaction.get('desc', '无描述')
+                desc = reaction.get('desc', 'No description')
                 
                 reactions_embed.add_field(
                     name=name,
@@ -686,18 +686,18 @@ class QueryCommands(commands.Cog):
             
             await thread.send(embed=reactions_embed)
         
-        # 最后发送数据来源
+        # Finally send data source
         source_embed = discord.Embed(
-            title="📚 数据来源",
-            description="所有数据来自 D&D 5e 系统参考文档 (SRD) API",
+            title="📚 Data Source",
+            description="All data from D&D 5e System Reference Document (SRD) API",
             color=0x696969
         )
         await thread.send(embed=source_embed)
 
-    @discord.app_commands.command(name="mon", description="查询D&D 5e怪物信息")
-    @discord.app_commands.describe(name="怪物名称（英文）")
+    @discord.app_commands.command(name="mon", description="Query D&D 5e monster information")
+    @discord.app_commands.describe(name="Monster name (English)")
     async def monster(self, interaction: discord.Interaction, name: str):
-        """查询怪物信息"""
+        """Query monster information"""
         try:
             await interaction.response.defer()
             
@@ -705,65 +705,65 @@ class QueryCommands(commands.Cog):
             
             if not monster_data:
                 embed = discord.Embed(
-                    title="❌ 未找到怪物",
-                    description=f"未找到名为 `{name}` 的怪物。请检查拼写或尝试其他关键词。",
+                    title="❌ Monster Not Found",
+                    description=f"Could not find monster named `{name}`. Please check spelling or try different keywords.",
                     color=0xFF0000
                 )
                 embed.add_field(
-                    name="提示",
-                    value="• 请使用英文名称\n• 检查拼写是否正确\n• 尝试使用不同的关键词",
+                    name="Tips",
+                    value="• Use English monster names\n• Check spelling\n• Try different keywords",
                     inline=False
                 )
                 await interaction.followup.send(embed=embed)
                 return
             
-            # 先生成嵌入消息
+            # Generate embed message first
             embed = self._format_monster_embed(monster_data)
             
-            # 检查消息长度
+            # Check message length
             total_length = self._calculate_embed_length(embed)
             
             if total_length > 750:
-                # 如果超过750字符，使用Thread分拆发送
-                self.logger.info(f"怪物 {monster_data['name']} 信息过长 ({total_length} 字符)，创建Thread")
+                # If over 750 characters, split across thread
+                self.logger.info(f"Monster {monster_data['name']} info too long ({total_length} chars), creating thread")
                 await self._send_monster_in_thread(interaction, monster_data, name)
             else:
-                # 正常发送嵌入消息
+                # Send regular embed message
                 await interaction.followup.send(embed=embed)
             
         except Exception as e:
-            self.logger.error(f"怪物查询错误: {e}")
+            self.logger.error(f"Monster query error: {e}")
             
-            # 安全的错误处理 - 避免Discord连接问题导致的二次错误
+            # Safe error handling - avoid secondary errors from Discord connection issues
             try:
                 if not interaction.response.is_done():
                     embed = discord.Embed(
-                        title="❌ 查询失败",
-                        description="查询过程中发生网络错误，请稍后重试。",
+                        title="❌ Query Failed",
+                        description="A network error occurred during the query, please try again later.",
                         color=0xFF0000
                     )
                     embed.add_field(
-                        name="可能的原因",
-                        value="• 网络连接问题\n• API服务临时不可用\n• 代理配置问题",
+                        name="Possible Causes",
+                        value="• Network connection issues\n• API service temporarily unavailable\n• Proxy configuration issues",
                         inline=False
                     )
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:
                     embed = discord.Embed(
-                        title="❌ 查询失败",
-                        description="查询过程中发生错误，请稍后重试。",
+                        title="❌ Query Failed",
+                        description="An error occurred during the query, please try again later.",
                         color=0xFF0000
                     )
                     await interaction.followup.send(embed=embed)
             except Exception as response_error:
-                # 如果连Discord响应都失败了，记录错误但不再尝试响应
-                self.logger.error(f"Discord响应失败: {response_error}")
-                # 静默处理，避免进一步崩溃
+                # If even Discord response fails, log error but don't try to respond again
+                self.logger.error(f"Discord response failed: {response_error}")
+                # Silent handling to avoid further crashes
     
-    @discord.app_commands.command(name="sk", description="查询D&D 5e技能信息")
-    @discord.app_commands.describe(name="技能名称（英文）")
+    @discord.app_commands.command(name="sk", description="Query D&D 5e skill information")
+    @discord.app_commands.describe(name="Skill name (English)")
     async def skill(self, interaction: discord.Interaction, name: str):
-        """查询技能信息"""
+        """Query skill information"""
         try:
             await interaction.response.defer()
             
@@ -771,8 +771,8 @@ class QueryCommands(commands.Cog):
             
             if not skill_data:
                 embed = discord.Embed(
-                    title="❌ 未找到技能",
-                    description=f"未找到名为 `{name}` 的技能。请检查拼写或尝试其他关键词。",
+                    title="❌ Skill Not Found",
+                    description=f"Could not find skill named `{name}`. Please check spelling or try different keywords.",
                     color=0xFF0000
                 )
                 await interaction.followup.send(embed=embed)
@@ -785,38 +785,38 @@ class QueryCommands(commands.Cog):
             )
             
             embed.add_field(
-                name="关联属性",
+                name="Associated Ability",
                 value=skill_data['ability_score']['name'],
                 inline=True
             )
             
-            embed.set_footer(text="数据来源: D&D 5e SRD API")
+            embed.set_footer(text="Data Source: D&D 5e SRD API")
             await interaction.followup.send(embed=embed)
             
         except Exception as e:
-            self.logger.error(f"技能查询错误: {e}")
+            self.logger.error(f"Skill query error: {e}")
             
-            # 安全的错误处理 - 避免Discord连接问题导致的二次错误
+            # Safe error handling - avoid secondary errors from Discord connection issues
             try:
                 if not interaction.response.is_done():
                     embed = discord.Embed(
-                        title="❌ 查询失败",
-                        description="查询过程中发生网络错误，请稍后重试。",
+                        title="❌ Query Failed",
+                        description="A network error occurred during the query, please try again later.",
                         color=0xFF0000
                     )
                     await interaction.response.send_message(embed=embed, ephemeral=True)
                 else:
                     embed = discord.Embed(
-                        title="❌ 查询失败",
-                        description="查询过程中发生错误，请稍后重试。",
+                        title="❌ Query Failed",
+                        description="An error occurred during the query, please try again later.",
                         color=0xFF0000
                     )
                     await interaction.followup.send(embed=embed)
             except Exception as response_error:
-                # 如果连Discord响应都失败了，记录错误但不再尝试响应
-                self.logger.error(f"Discord响应失败: {response_error}")
-                # 静默处理，避免进一步崩溃
+                # If even Discord response fails, log error but don't try to respond again
+                self.logger.error(f"Discord response failed: {response_error}")
+                # Silent handling to avoid further crashes
 
 async def setup(bot: commands.Bot):
-    """设置Cog"""
+    """Setup Cog"""
     await bot.add_cog(QueryCommands(bot)) 

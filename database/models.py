@@ -1,6 +1,6 @@
 """
-数据库模型定义
-包含所有D&D机器人需要的表结构
+Database Model Definitions
+Contains all table structures needed for the D&D bot
 """
 import asyncio
 import aiosqlite
@@ -9,14 +9,14 @@ from typing import Optional, List, Dict, Any
 import json
 
 class DatabaseModels:
-    """数据库模型类，定义所有表结构"""
+    """Database model class, defines all table structures"""
     
     @staticmethod
     def get_create_tables_sql() -> Dict[str, str]:
-        """获取所有创建表的SQL语句"""
+        """Get SQL statements for creating all tables"""
         
         return {
-            # 用户表
+            # Users table
             "users": """
                 CREATE TABLE IF NOT EXISTS users (
                     id INTEGER PRIMARY KEY,
@@ -32,7 +32,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 服务器配置表
+            # Guild configuration table
             "guilds": """
                 CREATE TABLE IF NOT EXISTS guilds (
                     id INTEGER PRIMARY KEY,
@@ -49,7 +49,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 角色表
+            # Characters table
             "characters": """
                 CREATE TABLE IF NOT EXISTS characters (
                     id INTEGER PRIMARY KEY,
@@ -77,7 +77,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 角色属性表
+            # Character stats table
             "character_stats": """
                 CREATE TABLE IF NOT EXISTS character_stats (
                     id INTEGER PRIMARY KEY,
@@ -100,7 +100,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 角色技能表
+            # Character skills table
             "character_skills": """
                 CREATE TABLE IF NOT EXISTS character_skills (
                     id INTEGER PRIMARY KEY,
@@ -115,7 +115,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 装备表
+            # Equipment table
             "equipment": """
                 CREATE TABLE IF NOT EXISTS equipment (
                     id INTEGER PRIMARY KEY,
@@ -135,7 +135,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 角色装备关系表
+            # Character equipment relationship table
             "character_equipment": """
                 CREATE TABLE IF NOT EXISTS character_equipment (
                     id INTEGER PRIMARY KEY,
@@ -151,7 +151,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 战斗会话表
+            # Combat sessions table
             "combat_sessions": """
                 CREATE TABLE IF NOT EXISTS combat_sessions (
                     id INTEGER PRIMARY KEY,
@@ -171,7 +171,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 战斗参与者表
+            # Combat participants table
             "combat_participants": """
                 CREATE TABLE IF NOT EXISTS combat_participants (
                     id INTEGER PRIMARY KEY,
@@ -194,7 +194,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 状态效果表
+            # Status effects table
             "status_effects": """
                 CREATE TABLE IF NOT EXISTS status_effects (
                     id INTEGER PRIMARY KEY,
@@ -212,7 +212,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 骰子历史表
+            # Dice history table
             "dice_history": """
                 CREATE TABLE IF NOT EXISTS dice_history (
                     id INTEGER PRIMARY KEY,
@@ -231,7 +231,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 法术数据表
+            # Spells data table
             "spells": """
                 CREATE TABLE IF NOT EXISTS spells (
                     id INTEGER PRIMARY KEY,
@@ -250,7 +250,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 怪物数据表
+            # Monsters data table
             "monsters": """
                 CREATE TABLE IF NOT EXISTS monsters (
                     id INTEGER PRIMARY KEY,
@@ -286,7 +286,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 物品数据表
+            # Items data table
             "items": """
                 CREATE TABLE IF NOT EXISTS items (
                     id INTEGER PRIMARY KEY,
@@ -304,7 +304,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 战斗日志表
+            # Combat logs table
             "combat_logs": """
                 CREATE TABLE IF NOT EXISTS combat_logs (
                     id INTEGER PRIMARY KEY,
@@ -328,7 +328,7 @@ class DatabaseModels:
                 )
             """,
             
-            # 用户成就表
+            # User achievements table
             "achievements": """
                 CREATE TABLE IF NOT EXISTS achievements (
                     id INTEGER PRIMARY KEY,
@@ -349,7 +349,7 @@ class DatabaseModels:
     
     @staticmethod
     def get_indexes_sql() -> List[str]:
-        """获取所有索引的SQL语句"""
+        """Get SQL statements for all indexes"""
         return [
             "CREATE INDEX IF NOT EXISTS idx_users_discord_id ON users(discord_id)",
             "CREATE INDEX IF NOT EXISTS idx_guilds_discord_id ON guilds(discord_id)",

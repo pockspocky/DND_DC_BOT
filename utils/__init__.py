@@ -1,6 +1,6 @@
 """
-工具模块
-包含日志、错误处理、命令系统等核心工具
+Utility module
+Contains core tools including logging, error handling, command system, etc.
 """
 
 try:
@@ -20,5 +20,5 @@ try:
     ]
 except ImportError as e:
     print(f"Warning: Failed to import utils modules: {e}")
-    # 提供默认的空实现
+    # Provide default empty implementation
     __all__ = []

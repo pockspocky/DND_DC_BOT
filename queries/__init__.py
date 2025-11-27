@@ -1,5 +1,5 @@
 """
-D&D 5e API查询功能模块
+D&D 5e API query functionality module
 """
 
 from .api_client import DnDAPIClient

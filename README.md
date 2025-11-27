@@ -1,707 +1,691 @@
-# DND_DC_BOT - 龙与地下城Discord机器人
+# DND_DC_BOT - Dungeons & Dragons Discord Bot
 
-![Status](https://img.shields.io/badge/状态-稳定运行-green) ![Version](https://img.shields.io/badge/版本-v1.4.0-blue) ![Commands](https://img.shields.io/badge/斜杠命令-22个-orange) ![AI](https://img.shields.io/badge/AI-Gemini%20API-purple) ![Docker](https://img.shields.io/badge/Docker-支持-blue)
+![Status](https://img.shields.io/badge/status-stable-green) ![Version](https://img.shields.io/badge/version-v1.4.0-blue) ![Commands](https://img.shields.io/badge/slash%20commands-22-orange) ![AI](https://img.shields.io/badge/AI-Gemini%20API-purple)
 
-一个专为龙与地下城(D&D)游戏设计的Discord机器人，集成了AI场景生成、完整的游戏辅助功能和智能查询系统。
+A Discord bot designed specifically for Dungeons & Dragons (D&D) gameplay, featuring AI scene generation, comprehensive game assistance, and intelligent query systems.
 
-## 🆕 最新功能亮点
+## 🆕 Latest Features
 
-### 🎭 AI场景生成器 (NEW!)
-- **Gemini AI驱动**: 使用Google Gemini API生成高质量场景描述
-- **自定义风格**: 支持任意风格词汇（恐怖、浪漫、幽默、史诗、诗意等）
-- **灵活长度**: 50-500字可调节
-- **DM专用**: 为地下城主提供丰富的场景描述工具
+### 🎭 AI Scene Generator (NEW!)
+- **Gemini AI Powered**: Generate high-quality scene descriptions using Google Gemini API
+- **Custom Styles**: Support for any style keywords (horror, romantic, humorous, epic, poetic, etc.)
+- **Flexible Length**: Adjustable from 50-500 words
+- **DM Exclusive**: Rich scene description tools for Dungeon Masters
 
-### 🎲 完整游戏系统
-- **22个斜杠命令**: 覆盖骰子、查询、战斗、场景生成等全套功能
-- **智能缓存**: 优化的API响应速度
-- **数据持久化**: SQLite数据库存储所有游戏数据
-- **网络兼容**: 支持代理环境，解决连接问题
+### 🎲 Complete Game System
+- **22 Slash Commands**: Full coverage of dice, queries, combat, scene generation, and more
+- **Intelligent Caching**: Optimized API response speed
+- **Data Persistence**: SQLite database stores all game data
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 🐳 Docker部署（推荐）
-**Docker部署可以完美解决SSL连接问题，是推荐的部署方式**
+### Prerequisites
 
-```bash
-# 1. 克隆项目
-git clone https://github.com/yourusername/DND_DC_BOT.git
-cd DND_DC_BOT
+**Docker Deployment (Recommended)** 🐳:
+- Docker 20.10+
+- Docker Compose 1.28+
 
-# 2. 配置环境变量
-cp docker.env.example .env
-# 编辑.env文件，添加以下内容：
-# DISCORD_TOKEN=your_discord_bot_token
-# GEMINI_API_KEY=your_gemini_api_key
-# PROXY_URL=http://127.0.0.1:7890  # 如果需要代理
-
-# 3. 一键部署
-chmod +x deploy-docker.sh
-./deploy-docker.sh
-
-# 4. 管理服务
-./deploy-docker.sh --status   # 查看状态
-./deploy-docker.sh --logs     # 查看日志
-./deploy-docker.sh --restart  # 重启服务
-./deploy-docker.sh --down     # 停止服务
-```
-
-### 🐍 传统部署
-
-#### 前置要求
+**Direct Python Deployment**:
 - Python 3.8+
 - pip
 
-#### 详细步骤
-1. **克隆项目**
+### Installation Steps
+
+#### Option 1: Docker Deployment (Recommended for SSL Issues) 🐳
+
+Docker deployment is **recommended** if you encounter SSL certificate errors or network connectivity issues. It provides a consistent environment with modern SSL support.
+
+1. **Clone the project**
 ```bash
 git clone https://github.com/yourusername/DND_DC_BOT.git
 cd DND_DC_BOT
 ```
 
-2. **安装依赖**
+2. **Configure environment variables**
+```bash
+cp docker.env.example .env
+nano .env  # Edit with your tokens
+```
+
+Required configuration:
+```env
+DISCORD_TOKEN=your_discord_bot_token
+GEMINI_API_KEY=your_gemini_api_key  # Optional, for AI scene generation
+```
+
+3. **Deploy the bot**
+```bash
+# Make deployment script executable
+chmod +x deploy-docker.sh
+
+# Deploy (builds image and starts container)
+./deploy-docker.sh
+
+# View logs
+./deploy-docker.sh --logs
+
+# Check status
+./deploy-docker.sh --status
+```
+
+**Docker Management Commands**:
+```bash
+./deploy-docker.sh          # Deploy/update bot
+./deploy-docker.sh --status # Show container status
+./deploy-docker.sh --logs   # View logs (follow mode)
+./deploy-docker.sh --restart # Restart container
+./deploy-docker.sh --down   # Stop and remove container
+```
+
+📖 **Full Docker Guide**: See [Docker Deployment Guide](docs/docker-deployment-guide.md) for detailed instructions, troubleshooting, and advanced configuration.
+
+#### Option 2: Direct Python Deployment
+
+1. **Clone the project**
+```bash
+git clone https://github.com/yourusername/DND_DC_BOT.git
+cd DND_DC_BOT
+```
+
+2. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **配置环境变量**
-创建 `.env` 文件：
+3. **Configure environment variables**
+Create `.env` file:
 ```env
 DISCORD_TOKEN=your_discord_bot_token
-PROXY_URL=http://127.0.0.1:7890  # 如果需要代理
+GEMINI_API_KEY=your_gemini_api_key  # Optional, for AI scene generation
 ```
 
-4. **启动机器人**
+4. **Start the bot**
 ```bash
-# 直接启动（推荐）
+# Direct start (recommended)
 python3 main.py
 
-# 后台启动
+# Background start
 nohup python3 main.py > bot.log 2>&1 &
 ```
 
-#### 网络连接配置
-如果你的网络环境需要代理访问Discord：
+## 🎲 Core Features
 
-1. **确保代理服务运行**（如ClashX, V2Ray等）
-2. **配置代理URL**：在`.env`文件中设置正确的代理地址
-3. **测试连接**：
-```bash
-python3 check_connection.py
+### 🎭 AI Scene Generator ✨
+Intelligent scene description generation for DMs using Google Gemini API
+
+**Command**: `/scene`
+
+**Parameters**:
+- `description`: English scene description
+- `length`: Description length (50-500 words, default 100)
+- `style`: Style keyword (supports any custom style)
+
+**Supported Styles**:
+- **Preset Styles**: Descriptive, mysterious, tense, dramatic, horror, romantic, humorous, epic, cozy, adventure
+- **Custom Styles**: Poetic, eerie, melancholic, majestic, playful, classical, modern, and any other keywords
+
+**Usage Examples**:
+```
+/scene description:"A mysterious forest" length:120 style:"horror"
+/scene description:"A romantic garden" length:100 style:"romantic"
+/scene description:"A funny tavern" length:150 style:"humorous"
+/scene description:"A dark castle" length:80 style:"eerie"
 ```
 
-## 🎲 核心功能
+### 🎲 Dice System ✅
+Complete D&D dice rolling system
 
-### 🎭 AI场景生成器 ✨
-使用Google Gemini API为DM提供智能场景描述生成
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/r` | Roll dice | `/r dice:d20 modifier:5 advantage:advantage` |
+| `/check` | Skill check | `/check modifier:3 advantage:advantage` |
+| `/save` | Saving throw | `/save save_type:dexterity modifier:2` |
+| `/att` | Attack roll | `/att attack_bonus:5 damage_dice:1d8+3` |
+| `/stats` | Generate character stats | `/stats method:4d6 drop lowest` |
+| `/rh` | Dice help | `/rh` |
 
-**命令**: `/scene`
+**Advanced Features**:
+- Advantage/disadvantage rolls
+- Multiple dice rolls
+- Keep/drop rules
+- Complex modifier calculations
+- Private roll mode
 
-**参数**:
-- `description`: 英文场景描述
-- `length`: 描述长度（50-500字，默认100）
-- `style`: 风格词汇（支持任意自定义）
+### 🔍 Query System ✅
+Complete D&D 5e resource queries
 
-**支持的风格**:
-- **预设风格**: 描述性、神秘、紧张、戏剧性、恐怖、浪漫、幽默、史诗、温馨、冒险
-- **自定义风格**: 诗意、诡异、悲伤、威严、俏皮、古典、现代等任意词汇
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/sp` | Spell query | `/sp fireball` |
+| `/mon` | Monster query | `/mon goblin` |
+| `/sk` | Skill query | `/sk perception` |
 
-**使用示例**:
+**Key Features**:
+- Intelligent search matching
+- Detailed information display
+- Auto-thread expansion for long content
+- 1-hour intelligent caching
+- User-friendly error messages
+
+### ⚔️ Combat Management System ✅
+Complete D&D combat assistance tools
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/cs` | Start combat | `/cs name:Goblin Ambush` |
+| `/ce` | End combat | `/ce` |
+| `/st` | Combat status | `/st` |
+| `/add` | Add participant | `/add name:Goblin max_hp:7 initiative:12` |
+| `/rm` | Remove participant | `/rm name:Goblin` |
+| `/next` | Next turn | `/next` |
+| `/dmg` | Deal damage | `/dmg target:Goblin expression:1d6+2` |
+| `/heal` | Heal character | `/heal target:Wizard expression:1d8+3` |
+
+**Combat System Features**:
+- Automatic initiative sorting
+- Turn-based management
+- Real-time HP tracking
+- Dice expression support
+- Multi-channel independent sessions
+- DM permission control
+
+### 🛠️ Basic Tools
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/ping` | Test response | `/ping` |
+| `/help` | Help information | `/help` |
+| `/dbstats` | Database statistics | `/dbstats` |
+| `/echo` | Echo message | `/echo message:"test"` |
+
+## 🎯 Complete `/r` Command Guide
+
+### Basic Usage
 ```
-/scene description:"A mysterious forest" length:120 style:"恐怖"
-/scene description:"A romantic garden" length:100 style:"浪漫"
-/scene description:"A funny tavern" length:150 style:"幽默"
-/scene description:"A dark castle" length:80 style:"诡异"
-```
-
-### 🎲 骰子系统 ✅
-完整的D&D骰子投掷系统
-
-| 命令 | 描述 | 示例 |
-|------|------|------|
-| `/r` | 投掷骰子 | `/r dice:d20 modifier:5 advantage:优势` |
-| `/check` | 技能检定 | `/check modifier:3 advantage:优势` |
-| `/save` | 豁免检定 | `/save save_type:敏捷 modifier:2` |
-| `/att` | 攻击检定 | `/att attack_bonus:5 damage_dice:1d8+3` |
-| `/stats` | 角色属性生成 | `/stats method:4d6去最低` |
-| `/rh` | 骰子帮助 | `/rh` |
-
-**高级功能**:
-- 优势/劣势投掷
-- 多骰子投掷
-- 保留/丢弃规则
-- 复杂修正值计算
-- 私密投掷模式
-
-### 🔍 查询系统 ✅
-完整的D&D 5e资源查询
-
-| 命令 | 描述 | 示例 |
-|------|------|------|
-| `/sp` | 法术查询 | `/sp fireball` |
-| `/mon` | 怪物查询 | `/mon goblin` |
-| `/sk` | 技能查询 | `/sk perception` |
-
-**特色功能**:
-- 智能搜索匹配
-- 详细信息展示
-- 超长内容自动Thread展开
-- 1小时智能缓存
-- 友好的错误提示
-
-### ⚔️ 战斗管理系统 ✅
-完整的D&D战斗辅助工具
-
-| 命令 | 描述 | 示例 |
-|------|------|------|
-| `/cs` | 开始战斗 | `/cs name:哥布林袭击` |
-| `/ce` | 结束战斗 | `/ce` |
-| `/st` | 战斗状态 | `/st` |
-| `/add` | 添加参与者 | `/add name:哥布林 max_hp:7 initiative:12` |
-| `/rm` | 移除参与者 | `/rm name:哥布林` |
-| `/next` | 下一回合 | `/next` |
-| `/dmg` | 造成伤害 | `/dmg target:哥布林 expression:1d6+2` |
-| `/heal` | 治疗角色 | `/heal target:法师 expression:1d8+3` |
-
-**战斗系统特色**:
-- 先攻自动排序
-- 回合制管理
-- 生命值实时追踪
-- 支持骰子表达式
-- 多频道独立会话
-- DM权限控制
-
-### 🛠️ 基础工具
-| 命令 | 描述 | 示例 |
-|------|------|------|
-| `/ping` | 测试响应 | `/ping` |
-| `/help` | 帮助信息 | `/help` |
-| `/dbstats` | 数据库统计 | `/dbstats` |
-| `/echo` | 消息重复 | `/echo message:"测试"` |
-
-## 🎯 `/r` 命令完整指南
-
-### 基础用法
-```
-/r dice:d20                          # 投掷1个d20
-/r dice:d6                           # 投掷1个d6
-/r dice:d100                         # 投掷1个d100
+/r dice:d20                          # Roll 1d20
+/r dice:d6                           # Roll 1d6
+/r dice:d100                         # Roll 1d100
 ```
 
-### 带修正值
+### With Modifiers
 ```
-/r dice:d20 modifier:5               # 投掷d20+5
-/r dice:d8 modifier:-2               # 投掷d8-2
-```
-
-### 优势/劣势投掷
-```
-/r dice:d20 advantage:优势           # 优势骰 (2d20取高)
-/r dice:d20 advantage:劣势           # 劣势骰 (2d20取低)
-/r dice:d20 advantage:优势 modifier:3 # 优势骰+3
+/r dice:d20 modifier:5               # Roll d20+5
+/r dice:d8 modifier:-2               # Roll d8-2
 ```
 
-### 多个骰子
+### Advantage/Disadvantage Rolls
 ```
-/r dice:d6 count:3                   # 投掷3d6
-/r dice:d8 count:2 modifier:4        # 投掷2d8+4
-```
-
-### 保留/丢弃规则
-```
-/r dice:d6 count:4 drop_lowest:1     # 4d6去最低 (D&D属性生成)
-/r dice:d20 count:2 keep_highest:1   # 2d20保留最高
-/r dice:d12 count:5 keep_highest:3 modifier:-1  # 5d12保留最高3个-1
+/r dice:d20 advantage:advantage      # Advantage roll (2d20 keep highest)
+/r dice:d20 advantage:disadvantage   # Disadvantage roll (2d20 keep lowest)
+/r dice:d20 advantage:advantage modifier:3  # Advantage roll +3
 ```
 
-### 复杂组合示例
+### Multiple Dice
 ```
-/r dice:d8 count:3 modifier:2 private:true      # 3d8+2 (私密显示)
-/r dice:d6 advantage:优势 modifier:4             # d6优势骰+4
-```
-
-## 🎭 场景生成器详细指南
-
-### 基本使用
-```
-/scene description:"A dark forest path" style:"神秘"
+/r dice:d6 count:3                   # Roll 3d6
+/r dice:d8 count:2 modifier:4        # Roll 2d8+4
 ```
 
-### 风格选择
-**预设风格**:
-- `描述性`: 丰富的形容词和感官描述
-- `神秘`: 营造神秘氛围和暗示
-- `紧张`: 紧迫的语言和短句
-- `戏剧性`: 戏剧化语言，增强情感冲击
-- `恐怖`: 令人不安的描述和恐惧感
-- `浪漫`: 优美诗意的语言
-- `幽默`: 轻松幽默的描述
-- `史诗`: 宏伟壮阔的语言
-- `温馨`: 温暖亲切的氛围
-- `冒险`: 充满活力的探索感
-
-**自定义风格**:
-- 可以使用任意风格词汇
-- 如：`诗意`、`诡异`、`悲伤`、`威严`、`俏皮`等
-- AI会根据词汇特征自动调整生成策略
-
-### 长度控制
-- **最小长度**: 50字
-- **最大长度**: 500字
-- **默认长度**: 100字
-- **推荐长度**: 80-150字（适合朗读）
-
-### 高级示例
+### Keep/Drop Rules
 ```
-/scene description:"An ancient library with floating books" length:150 style:"史诗"
-/scene description:"A crowded marketplace" length:100 style:"幽默"
-/scene description:"A haunted mansion" length:120 style:"恐怖"
-/scene description:"A peaceful meadow" length:80 style:"诗意"
+/r dice:d6 count:4 drop_lowest:1     # 4d6 drop lowest (D&D stat generation)
+/r dice:d20 count:2 keep_highest:1   # 2d20 keep highest
+/r dice:d12 count:5 keep_highest:3 modifier:-1  # 5d12 keep highest 3, -1
 ```
 
-## 🛠️ 技术栈
+### Complex Combination Examples
+```
+/r dice:d8 count:3 modifier:2 private:true      # 3d8+2 (private display)
+/r dice:d6 advantage:advantage modifier:4       # d6 advantage roll +4
+```
 
-- **Python 3.11**: 主要开发语言
-- **discord.py**: Discord API库
-- **Google Gemini API**: AI场景生成
-- **SQLite**: 本地数据存储
-- **python-dotenv**: 环境变量管理
-- **Docker**: 容器化部署
-- **Docker Compose**: 服务编排
+## 🎭 Scene Generator Detailed Guide
 
-## 🚀 部署详细指南
+### Basic Usage
+```
+/scene description:"A dark forest path" style:"mysterious"
+```
 
-### 🐳 Docker部署（推荐）
+### Style Selection
+**Preset Styles**:
+- `descriptive`: Rich adjectives and sensory descriptions
+- `mysterious`: Creates mysterious atmosphere and hints
+- `tense`: Urgent language and short sentences
+- `dramatic`: Dramatic language, enhanced emotional impact
+- `horror`: Unsettling descriptions and sense of fear
+- `romantic`: Beautiful poetic language
+- `humorous`: Light and funny descriptions
+- `epic`: Grand and magnificent language
+- `cozy`: Warm and intimate atmosphere
+- `adventure`: Energetic sense of exploration
 
-#### 为什么选择Docker？
-- **解决SSL问题**: 使用现代OpenSSL，完美兼容Discord API
-- **环境一致性**: 避免Python版本和依赖冲突
-- **简化部署**: 一键部署，无需手动配置
-- **易于管理**: 统一的服务管理命令
+**Custom Styles**:
+- Can use any style keywords
+- Examples: `poetic`, `eerie`, `melancholic`, `majestic`, `playful`, etc.
+- AI automatically adjusts generation strategy based on keyword characteristics
 
-#### 前置要求
+### Length Control
+- **Minimum length**: 50 words
+- **Maximum length**: 500 words
+- **Default length**: 100 words
+- **Recommended length**: 80-150 words (suitable for reading aloud)
+
+### Advanced Examples
+```
+/scene description:"An ancient library with floating books" length:150 style:"epic"
+/scene description:"A crowded marketplace" length:100 style:"humorous"
+/scene description:"A haunted mansion" length:120 style:"horror"
+/scene description:"A peaceful meadow" length:80 style:"poetic"
+```
+
+## 🛠️ Technology Stack
+
+- **Python 3.8+**: Primary development language (Python 3.11 in Docker)
+- **discord.py**: Discord API library
+- **Google Gemini API**: AI scene generation
+- **SQLite**: Local data storage
+- **python-dotenv**: Environment variable management
+- **aiosqlite**: Async SQLite database operations
+- **aiohttp**: Async HTTP client for API requests
+- **Docker**: Containerized deployment (recommended for SSL issues)
+- **Docker Compose**: Service orchestration
+
+## 🚀 Deployment Guide
+
+### Deployment Method Comparison
+
+| Feature | Docker Deployment 🐳 | Direct Python Deployment |
+|---------|---------------------|-------------------------|
+| **SSL Issues** | ✅ Resolved automatically | ⚠️ May require manual fixes |
+| **Setup Complexity** | ⭐⭐ Simple | ⭐⭐⭐ Moderate |
+| **Dependency Management** | ✅ Automatic | ⚠️ Manual |
+| **Environment Isolation** | ✅ Complete isolation | ❌ System-wide |
+| **Updates** | ✅ One command | ⚠️ Manual steps |
+| **Recommended For** | Production, SSL issues | Development, testing |
+
+### Docker Deployment (Recommended) 🐳
+
+**Why Docker?**
+- ✅ Resolves SSL certificate issues automatically
+- ✅ Consistent environment across all systems
+- ✅ No dependency conflicts
+- ✅ Easy updates and rollbacks
+- ✅ Automatic restart on crashes
+
+#### Prerequisites
 - Docker 20.10+
-- Docker Compose 1.29+
+- Docker Compose 1.28+
+- Stable network connection
 
-#### 详细步骤
+#### Detailed Steps
 
-1. **环境准备**
+1. **Install Docker** (if not already installed)
 ```bash
-# 检查Docker版本
+# Check Docker installation
 docker --version
 docker-compose --version
 
-# 如果未安装，请先安装Docker
-# macOS: brew install docker docker-compose
-# Ubuntu: sudo apt-get install docker.io docker-compose
+# If not installed, visit: https://docs.docker.com/get-docker/
 ```
 
-2. **项目部署**
+2. **Project Setup**
 ```bash
-# 克隆项目
+# Clone the project
 git clone https://github.com/yourusername/DND_DC_BOT.git
 cd DND_DC_BOT
 
-# 配置环境变量
+# Copy and configure environment file
 cp docker.env.example .env
-
-# 编辑.env文件，添加必要配置
-nano .env
+nano .env  # Edit with your tokens
 ```
 
-3. **环境变量配置**
-在`.env`文件中配置：
+3. **Configure Environment Variables**
 ```env
-# 必须配置
+# Discord bot token (required)
 DISCORD_TOKEN=your_discord_bot_token
 
-# 可选配置（如果需要代理）
-PROXY_URL=http://127.0.0.1:7890
+# Gemini API key (optional, for AI scene generation)
+GEMINI_API_KEY=your_gemini_api_key
 
-# 可选配置（Docker相关）
-COMPOSE_PROJECT_NAME=dnd_dc_bot
+# Log level (optional)
+LOG_LEVEL=INFO
+
+# Database file path (optional)
+DATABASE_PATH=dnd_bot.db
 ```
 
-4. **一键部署**
+4. **Deploy the Bot**
 ```bash
-# 给脚本执行权限
+# Make deployment script executable
 chmod +x deploy-docker.sh
 
-# 启动服务
+# Deploy (builds image and starts container)
 ./deploy-docker.sh
 
-# 查看启动状态
-./deploy-docker.sh --status
+# The bot will start in detached mode
+# Database and logs are persisted on your host system
 ```
 
-5. **服务管理**
+5. **Manage the Bot**
 ```bash
-# 查看日志
+# View logs (real-time)
 ./deploy-docker.sh --logs
 
-# 重启服务
+# Check container status
+./deploy-docker.sh --status
+
+# Restart the bot
 ./deploy-docker.sh --restart
 
-# 停止服务
+# Stop the bot
 ./deploy-docker.sh --down
 
-# 更新服务
-./deploy-docker.sh --update
+# Update the bot (after pulling new code)
+./deploy-docker.sh  # Rebuilds and restarts
 ```
 
-#### Docker部署优势
-- **稳定性**: 容器化运行，避免系统依赖问题
-- **安全性**: 隔离运行环境，不影响主机系统
-- **可维护性**: 统一的管理接口，便于维护
-- **可扩展性**: 支持多实例部署
+📖 **Complete Docker Documentation**: [Docker Deployment Guide](docs/docker-deployment-guide.md)
 
-### 🐍 传统部署
+### Direct Python Deployment
 
-#### 前置要求
+**Best for**: Development, testing, or when Docker is not available
+
+#### Prerequisites
 - Python 3.8+
 - pip
-- 稳定的网络连接
+- Stable network connection
 
-#### 详细步骤
+#### Detailed Steps
 
-1. **系统准备**
+1. **System Preparation**
 ```bash
-# 检查Python版本
+# Check Python version
 python3 --version
 
-# 检查pip版本
+# Check pip version
 pip --version
 
-# 如果需要，升级pip
+# If needed, upgrade pip
 pip install --upgrade pip
 ```
 
-2. **项目配置**
+2. **Project Configuration**
 ```bash
-# 克隆项目
+# Clone the project
 git clone https://github.com/yourusername/DND_DC_BOT.git
 cd DND_DC_BOT
 
-# 创建虚拟环境（推荐）
+# Create virtual environment (recommended)
 python3 -m venv venv
 source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate   # Windows
 
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-3. **环境变量配置**
+3. **Environment Variable Configuration**
 ```bash
-# 复制配置文件
+# Copy configuration file
 cp config_example.env .env
 
-# 编辑配置文件
+# Edit configuration file
 nano .env
 ```
 
-配置内容：
+Configuration content:
 ```env
-# Discord机器人令牌
+# Discord bot token (required)
 DISCORD_TOKEN=your_discord_bot_token
 
-# 代理配置（如果需要）
-PROXY_URL=http://127.0.0.1:7890
+# Gemini API key (optional, for AI scene generation)
+GEMINI_API_KEY=your_gemini_api_key
 
-# 日志级别
+# Log level (optional)
 LOG_LEVEL=INFO
 
-# 数据库文件路径
+# Database file path (optional)
 DATABASE_PATH=dnd_bot.db
 ```
 
-4. **网络连接测试**
+4. **Start the Bot**
 ```bash
-# 测试网络连接
-python3 check_connection.py
-
-# 如果显示连接失败，检查代理配置
-```
-
-5. **启动机器人**
-```bash
-# 前台启动（开发调试）
+# Foreground start (development/debugging)
 python3 main.py
 
-# 后台启动（生产环境）
+# Background start (production environment)
 nohup python3 main.py > bot.log 2>&1 &
 
-# 查看运行状态
+# Check running status
 ps aux | grep python3 | grep main.py
 
-# 查看日志
+# View logs
 tail -f bot.log
 ```
 
-#### 常见问题解决
+### Common Issue Resolution
 
-**SSL连接问题**:
+**SSL Certificate Errors** 🔒:
 ```bash
-# 检查OpenSSL版本
-openssl version
+# Recommended solution: Use Docker deployment
+./deploy-docker.sh
 
-# 如果版本过旧，考虑使用Docker部署
-# 或者升级系统OpenSSL
+# Alternative: Update system certificates (Linux)
+sudo apt-get update
+sudo apt-get install --reinstall ca-certificates
+
+# Alternative: Update system certificates (macOS)
+brew install openssl
 ```
 
-**代理连接问题**:
+**Dependency Installation Issues**:
 ```bash
-# 测试代理连接
-curl --proxy http://127.0.0.1:7890 https://discord.com/api/v10/gateway
-
-# 检查代理端口
-lsof -i :7890
-
-# 确认代理软件运行状态
-```
-
-**依赖安装问题**:
-```bash
-# 清理pip缓存
+# Clear pip cache
 pip cache purge
 
-# 重新安装依赖
+# Reinstall dependencies
 pip install -r requirements.txt --no-cache-dir
 
-# 如果某个包安装失败，单独安装
+# If a specific package fails to install, install separately
 pip install package_name
 ```
 
-## 🔧 开发和调试
-
-### 本地开发环境
-
-1. **开发环境配置**
+**Docker Issues**:
 ```bash
-# 安装开发依赖
+# Check Docker service status
+sudo systemctl status docker
+
+# Restart Docker service
+sudo systemctl restart docker
+
+# View detailed container logs
+docker logs dnd-bot
+
+# Rebuild from scratch
+./deploy-docker.sh --down
+docker system prune -a
+./deploy-docker.sh
+```
+
+## 🔧 Development and Debugging
+
+### Local Development Environment
+
+1. **Development Environment Configuration**
+```bash
+# Install development dependencies
 pip install -r requirements-dev.txt
 
-# 启用开发模式
+# Enable development mode
 export DEVELOPMENT=true
 python3 main.py
 ```
 
-2. **调试命令**
+2. **Debugging Commands**
 ```bash
-# 查看详细日志
+# View detailed logs
 tail -f logs/bot.log
 
-# 查看错误日志
+# View error logs
 tail -f logs/error.log
 
-# 实时监控
+# Real-time monitoring
 python3 -u main.py | tee console.log
 ```
 
-### 数据库管理
+### Database Management
 
 ```bash
-# 查看数据库状态
+# View database status
 python3 -c "from database.database import DatabaseManager; print(DatabaseManager().get_database_stats())"
 
-# 重置数据库
+# Reset database
 python3 setup_database.py
 
-# 备份数据库
+# Backup database
 cp dnd_bot.db dnd_bot_backup.db
 ```
 
-### API测试
+### API Testing
 
 ```bash
-# 测试Gemini API
-python3 -c "from scene_generator import scene_generator; import asyncio; print(asyncio.run(scene_generator.generate_scene_description('A dark forest', 100, '神秘')))"
-
-# 测试Discord连接
-python3 check_connection.py
+# Test Gemini API
+python3 -c "from scene_generator import scene_generator; import asyncio; print(asyncio.run(scene_generator.generate_scene_description('A dark forest', 100, 'mysterious')))"
 ```
 
-## 📊 项目统计
+## 📊 Project Statistics
 
-### 当前状态
-- **版本**: v1.4.0
-- **斜杠命令**: 22个
-- **核心模块**: 6个
-- **API集成**: 2个（D&D 5e SRD, Google Gemini）
-- **数据库表**: 15个
-- **支持功能**: 骰子、查询、战斗、场景生成
+### Current Status
+- **Version**: v1.4.0
+- **Slash Commands**: 22
+- **Core Modules**: 6
+- **API Integrations**: 2 (D&D 5e SRD, Google Gemini)
+- **Database Tables**: 15
+- **Supported Features**: Dice, queries, combat, scene generation
 
-### 功能完成度
-- **骰子系统**: 100% ✅
-- **查询系统**: 100% ✅
-- **战斗系统**: 100% ✅
-- **场景生成**: 100% ✅
-- **角色管理**: 0% ⏳
-- **DM工具**: 20% ⏳
+### Feature Completion
+- **Dice System**: 100% ✅
+- **Query System**: 100% ✅
+- **Combat System**: 100% ✅
+- **Scene Generation**: 100% ✅
+- **Character Management**: 0% ⏳
+- **DM Tools**: 20% ⏳
 
-### 技术指标
-- **响应时间**: <2秒
-- **API缓存**: 1小时
-- **数据库**: SQLite稳定运行
-- **内存使用**: <200MB
-- **容器大小**: ~100MB
+### Technical Metrics
+- **Response Time**: <2 seconds
+- **API Cache**: 1 hour
+- **Database**: SQLite running stably
+- **Memory Usage**: <200MB (direct) / <250MB (Docker)
+- **Docker Image Size**: ~450MB
+- **Deployment Methods**: 2 (Docker + Direct Python)
 
-## 🤝 贡献指南
+## 🤝 Contributing Guide
 
-### 如何贡献
+### How to Contribute
 
-1. **Fork项目**
-2. **创建功能分支**
+1. **Fork the project**
+2. **Create a feature branch**
 ```bash
 git checkout -b feature/new-feature
 ```
 
-3. **提交更改**
+3. **Commit your changes**
 ```bash
 git commit -m "Add new feature"
 ```
 
-4. **推送到分支**
+4. **Push to the branch**
 ```bash
 git push origin feature/new-feature
 ```
 
-5. **创建Pull Request**
+5. **Create a Pull Request**
 
-### 开发规范
+### Development Standards
 
-- **代码风格**: 遵循PEP 8
-- **注释**: 关键函数必须有docstring
-- **测试**: 新功能需要添加测试
-- **文档**: 更新相关文档
+- **Code Style**: Follow PEP 8
+- **Comments**: Key functions must have docstrings
+- **Testing**: New features require tests
+- **Documentation**: Update relevant documentation
 
-### 错误报告
+### Bug Reports
 
-如果发现Bug，请创建Issue并包含：
-- 错误描述
-- 复现步骤
-- 环境信息
-- 日志文件
+If you find a bug, please create an Issue including:
+- Error description
+- Steps to reproduce
+- Environment information
+- Log files
 
-## 🌐 网络连接故障排除
+## 📖 Documentation
 
-### 常见错误
+### User Documentation
+- **Quick Start**: This README
+- **Command Reference**: See command tables above for complete usage
 
-1. **Connection timeout**
-```
-Cannot connect to host discord.com:443
-```
+### Technical Information
+- **Database**: SQLite with 15+ tables for game data
+- **API Integration**: D&D 5e SRD API and Google Gemini API
+- **Architecture**: Modular command system with async operations
 
-2. **SSL握手失败**
-```
-SSL: CERTIFICATE_VERIFY_FAILED
-```
+## 📄 License
 
-3. **代理连接失败**
-```
-Cannot connect to proxy
-```
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
-### 解决方案
+## 🎮 Changelog
 
-1. **检查代理设置**
-```bash
-# 确认代理运行
-curl --proxy http://127.0.0.1:7890 https://google.com
-
-# 检查端口占用
-lsof -i :7890
-```
-
-2. **使用连接诊断工具**
-```bash
-python3 check_connection.py
-```
-
-3. **Docker部署（推荐）**
-```bash
-# Docker能解决大部分SSL问题
-./deploy-docker.sh
-```
-
-## 📖 文档和资源
-
-### 用户文档
-- **快速开始**: 本README
-- **命令指南**: [START_GUIDE.md](START_GUIDE.md)
-- **查询使用**: [docs/query_usage_guide.md](docs/query_usage_guide.md)
-- **战斗系统**: [docs/combat_system_guide.md](docs/combat_system_guide.md)
-
-### 技术文档
-- **API参考**: [docs/dnd_api_reference.md](docs/dnd_api_reference.md)
-- **数据库设计**: [docs/database_schema.md](docs/database_schema.md)
-- **Docker部署**: [docs/docker-deployment-guide.md](docs/docker-deployment-guide.md)
-
-### 故障排除
-- **连接问题**: [docs/troubleshooting.md](docs/troubleshooting.md)
-- **安全配置**: [docs/security_guide.md](docs/security_guide.md)
-
-## 📄 许可证
-
-本项目采用MIT许可证，详情请查看[LICENSE](LICENSE)文件。
-
-## 🎮 更新日志
+### v1.5.0 (2025-11-24) 🐳
+- **Docker Support**: Complete containerization implementation
+  - Dockerfile with Python 3.11 and optimized SSL support
+  - Docker Compose orchestration with volume persistence
+  - Deployment management script with easy commands
+  - Comprehensive Docker deployment documentation
+  - Automatic SSL certificate handling
+  - Resolves network connectivity issues
+- **Deployment Options**: Both Docker and direct Python methods supported
+- **Documentation Updates**: Enhanced README with deployment comparison
+- **Production Ready**: Automatic restart, log persistence, database backup
 
 ### v1.4.0 (2025-07-10) 🎭
-- **AI场景生成器**: 集成Google Gemini API
-  - 支持自定义风格词汇（恐怖、浪漫、幽默、史诗等）
-  - 灵活的长度控制（50-500字）
-  - 智能演示模式回退
-  - 完美的中文场景描述生成
-- **自定义风格系统**: 突破预设限制
-  - 10个预设风格
-  - 支持任意自定义风格词汇
-  - AI自动风格适应
-  - 丰富的风格示例库
-- **功能增强**: 新增场景生成命令
-  - `/scene` 命令完整实现
-  - 参数验证和错误处理
-  - 美观的Discord嵌入消息
-  - 详细的使用指南
-- **依赖更新**: 
-  - 新增 `google-genai>=1.25.0`
-  - 更新 requirements.txt
-- **文档全面更新**: 
-  - 更新README反映所有新功能
-  - 新增场景生成器使用指南
-  - 改进部署说明
-
-### v1.3.0 (2025-07-07) 🐳
-- **Docker部署支持**: 完美解决SSL连接问题
-  - 创建完整的Docker部署方案
-  - 使用Python 3.11 + 现代OpenSSL
-  - 提供一键部署脚本
-  - 支持容器化服务管理
-- **Docker配置文件**: 完整的容器化配置
-- **版本升级**: 标志着容器化部署的完成
+- **AI Scene Generator**: Integrated Google Gemini API
+  - Support for custom style keywords (horror, romantic, humorous, epic, etc.)
+  - Flexible length control (50-500 words)
+  - Intelligent demo mode fallback
+  - Perfect Chinese scene description generation
+- **Custom Style System**: Breaking through preset limitations
+  - 10 preset styles
+  - Support for any custom style keywords
+  - AI automatic style adaptation
+  - Rich style example library
+- **Feature Enhancement**: New scene generation command
+  - Complete `/scene` command implementation
+  - Parameter validation and error handling
+  - Beautiful Discord embed messages
+  - Detailed usage guide
+- **Dependency Updates**: 
+  - Added `google-genai>=1.25.0`
+  - Updated requirements.txt
 
 ### v1.2.9 (2025-07-09) ⚡
-- **命令简化**: `/roll` → `/r`，减少87.5%输入
-- **启动问题修复**: 解决多个启动相关错误
-- **SSL连接修复**: 多层SSL兼容性处理
-- **稳定性提升**: 机器人稳定运行
+- **Command Simplification**: `/roll` → `/r`, 87.5% less typing
+- **Startup Issue Fixes**: Resolved multiple startup-related errors
+- **SSL Connection Fixes**: Multi-layer SSL compatibility handling
+- **Stability Improvements**: Bot running stably
 
 ### v1.2.8 (2025-07-07) ⚡
-- **命令简化**: 所有命令改为简写形式
-- **用户体验**: 更方便的命令操作
-- **文档更新**: 同步更新所有文档
+- **Command Simplification**: All commands changed to abbreviated forms
+- **User Experience**: More convenient command operations
+- **Documentation Updates**: Synchronized updates to all documentation
 
 ### v1.2.7 (2025-07-07) 🔧
-- **战斗系统修复**: 彻底解决数据库问题
-- **完全可用**: 所有8个战斗命令正常工作
-- **性能优化**: 数据库访问优化
+- **Combat System Fixes**: Completely resolved database issues
+- **Fully Functional**: All 8 combat commands working properly
+- **Performance Optimization**: Database access optimization
 
-## 🎯 项目愿景
+## 🎯 Project Vision
 
-打造最全面、最易用的D&D Discord机器人，让线上跑团体验更加流畅有趣。通过AI技术增强游戏体验，为DM和玩家提供强大的辅助工具。
+Create the most comprehensive and user-friendly D&D Discord bot, making online tabletop gaming experiences smoother and more enjoyable. Enhance gameplay through AI technology, providing powerful assistance tools for DMs and players.
 
 ---
 
-**开始您的冒险吧！** 🎲✨
+**Start your adventure!** 🎲✨
 
-如有问题或建议，欢迎创建Issue或联系开发者。
+If you have questions or suggestions, feel free to create an Issue or contact the developer.

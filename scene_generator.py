@@ -1,68 +1,74 @@
 """
-D&D场景描述生成器
-使用Google Gemini API生成适合DM朗读的场景描述
+D&D Scene Description Generator
+Uses Google Gemini API to generate scene descriptions suitable for DM narration
 """
 import logging
 import os
 from typing import Optional
 from google import genai
 
+from dotenv import load_dotenv
+
+
+
 logger = logging.getLogger(__name__)
 
 class SceneGenerator:
-    """场景描述生成器"""
+    """Scene description generator"""
     
     def __init__(self):
-        # 从环境变量获取API密钥
+        # Get API key from environment variables
+        load_dotenv()
         api_key = os.getenv('GEMINI_API_KEY')
+        print(api_key)
         if not api_key:
-            raise ValueError("请设置 GEMINI_API_KEY 环境变量")
+            raise ValueError("Please set the GEMINI_API_KEY environment variable")
         
-        # 配置客户端
+        # Configure client
         self.client = genai.Client(api_key=api_key)
-        # 使用Gemini Flash模型
+        # Use Gemini Flash model
         self.model = "gemini-2.5-flash"
     
     async def generate_scene_description(
         self, 
         english_prompt: str, 
         length: int = 100,
-        style: str = "描述性"
+        style: str = "descriptive"
     ) -> Optional[str]:
         """
-        生成场景描述
+        Generate scene description
         
         Args:
-            english_prompt: 英文描述提示
-            length: 目标长度（字符数）
-            style: 描述风格（支持任意风格词汇，如：描述性、神秘、恐怖、浪漫、幽默等）
+            english_prompt: English description prompt
+            length: Target length (character count)
+            style: Description style (supports any style keywords, e.g.: descriptive, mysterious, horror, romantic, humorous, etc.)
             
         Returns:
-            生成的中文场景描述
+            Generated English scene description
         """
         try:
-            # 先尝试调用真实API
+            # First try calling the real API
             try:
-                # 构建系统提示
+                # Build system prompt
                 system_prompt = self._build_system_prompt(length, style)
                 
-                # 构建完整提示（Gemini不需要分开system和user消息）
+                # Build complete prompt (Gemini doesn't need separate system and user messages)
                 full_prompt = f"""
 {system_prompt}
 
-请根据以下英文描述生成一段适合DM朗读的中文场景描述：
+Please generate an English scene description suitable for DM narration based on the following English description:
 
 {english_prompt}
 
-要求：
-- 大约{length}字左右
-- 风格：{style}
-- 适合口语化朗读
-- 营造沉浸感
-- 不要包含具体的游戏规则或数值
+Requirements:
+- Approximately {length} characters
+- Style: {style}
+- Suitable for oral narration
+- Create immersion
+- Do not include specific game rules or numerical values
 """
                 
-                # 使用Gemini API调用
+                # Use Gemini API call
                 completion = self.client.models.generate_content(
                     model=self.model,
                     contents=full_prompt
@@ -70,143 +76,143 @@ class SceneGenerator:
                 
                 response = completion.text
                 if response:
-                    # 清理响应，移除可能的格式标记
+                    # Clean response, remove possible format markers
                     response = response.strip()
-                    # 移除可能的引号
+                    # Remove possible quotes
                     if response.startswith('"') and response.endswith('"'):
                         response = response[1:-1]
                     
-                    logger.info(f"生成场景描述成功，长度: {len(response)}字")
+                    logger.info(f"Scene description generated successfully, length: {len(response)} characters")
                     return response
                 
             except Exception as api_error:
-                logger.warning(f"API调用失败，使用演示模式: {api_error}")
-                # 如果API调用失败，返回演示内容
+                logger.warning(f"API call failed, using demo mode: {api_error}")
+                # If API call fails, return demo content
                 return self._generate_demo_description(english_prompt, length, style)
             
             return None
             
         except Exception as e:
-            logger.error(f"生成场景描述失败: {e}")
+            logger.error(f"Failed to generate scene description: {e}")
             return None
     
     def _build_system_prompt(self, length: int, style: str) -> str:
-        """构建系统提示"""
-        # 预定义风格的详细说明
+        """Build system prompt"""
+        # Detailed descriptions for predefined styles
         predefined_styles = {
-            "描述性": "使用丰富的形容词和感官描述，让玩家能够想象出生动的画面",
-            "戏剧性": "使用戏剧化的语言，增强情感冲击力，让场景更加引人入胜",
-            "神秘": "营造神秘氛围，使用含蓄的描述和暗示，让玩家产生好奇心",
-            "紧张": "使用紧迫的语言和短句，营造紧张刺激的氛围",
-            "恐怖": "营造恐怖氛围，使用令人不安的描述和暗示，让玩家感到紧张和恐惧",
-            "浪漫": "使用优美的语言和诗意的描述，营造浪漫温馨的氛围",
-            "幽默": "使用轻松幽默的语言，带有一些有趣的细节和描述",
-            "史诗": "使用宏伟壮阔的语言，展现史诗般的场面和氛围",
-            "温馨": "使用温暖亲切的语言，营造舒适安全的氛围",
-            "冒险": "使用充满活力的语言，强调探索和发现的刺激感"
+            "descriptive": "Use rich adjectives and sensory descriptions to help players imagine vivid scenes",
+            "dramatic": "Use dramatic language to enhance emotional impact and make scenes more engaging",
+            "mysterious": "Create a mysterious atmosphere using subtle descriptions and hints to spark player curiosity",
+            "tense": "Use urgent language and short sentences to create a tense and thrilling atmosphere",
+            "horror": "Create a horror atmosphere using unsettling descriptions and hints to make players feel nervous and afraid",
+            "romantic": "Use beautiful language and poetic descriptions to create a romantic and warm atmosphere",
+            "humorous": "Use light and humorous language with interesting details and descriptions",
+            "epic": "Use grand and magnificent language to showcase epic scenes and atmosphere",
+            "cozy": "Use warm and friendly language to create a comfortable and safe atmosphere",
+            "adventurous": "Use energetic language emphasizing the thrill of exploration and discovery"
         }
         
-        # 如果是预定义风格，使用详细说明；否则直接使用用户输入作为风格指导
+        # If it's a predefined style, use detailed description; otherwise use user input as style guidance
         if style in predefined_styles:
             style_instruction = predefined_styles[style]
         else:
-            # 自定义风格，让AI根据风格词汇灵活发挥
-            style_instruction = f"采用'{style}'的风格特点，根据这个风格词汇来调整语言风格、词汇选择和氛围营造"
+            # Custom style, let AI flexibly adapt based on style keywords
+            style_instruction = f"Adopt the characteristics of '{style}' style, adjusting language style, word choice, and atmosphere creation based on this style keyword"
         
-        return f"""你是一个专业的龙与地下城（D&D）地下城主（DM）助手。你的任务是根据英文描述生成适合DM朗读的中文场景描述。
+        return f"""You are a professional Dungeons & Dragons (D&D) Dungeon Master (DM) assistant. Your task is to generate English scene descriptions suitable for DM narration based on English descriptions.
 
-要求：
-1. 文本长度控制在{length}字左右（可以上下浮动20%）
-2. 风格：{style_instruction}
-3. 语言特点：
-   - 口语化，适合朗读
-   - 富有画面感
-   - 避免过于书面化的表达
-   - 营造沉浸感
-4. 内容特点：
-   - 专注于环境、氛围、感官体验
-   - 不包含具体的游戏机制或数值
-   - 为玩家的行动留出空间
-   - 适合fantasy奇幻设定
+Requirements:
+1. Text length should be around {length} characters (can vary by 20%)
+2. Style: {style_instruction}
+3. Language characteristics:
+   - Conversational, suitable for reading aloud
+   - Rich in imagery
+   - Avoid overly formal expressions
+   - Create immersion
+4. Content characteristics:
+   - Focus on environment, atmosphere, sensory experience
+   - Do not include specific game mechanics or numerical values
+   - Leave room for player actions
+   - Suitable for fantasy settings
 
-请直接输出描述文本，不要加任何前缀或后缀。"""
+Please output the description text directly without any prefix or suffix."""
     
     def get_suggested_styles(self) -> list:
-        """获取建议的描述风格（用户也可以输入自定义风格）"""
-        return ["描述性", "戏剧性", "神秘", "紧张", "恐怖", "浪漫", "幽默", "史诗", "温馨", "冒险"]
+        """Get suggested description styles (users can also input custom styles)"""
+        return ["descriptive", "dramatic", "mysterious", "tense", "horror", "romantic", "humorous", "epic", "cozy", "adventurous"]
     
     def _generate_demo_description(self, english_prompt: str, length: int, style: str) -> str:
-        """生成演示场景描述（当API不可用时使用）"""
-        # 基于输入生成合适的演示内容
+        """Generate demo scene description (used when API is unavailable)"""
+        # Generate appropriate demo content based on input
         demo_descriptions = {
-            "描述性": {
-                "default": "夜幕降临在这片古老的森林中，月光透过茂密的树冠洒下斑驳的银辉。远处，几团神秘的蓝绿色光芒在树丛间若隐若现，仿佛精灵在暗中窃窃私语。空气中弥漫着潮湿的泥土气息和青草的清香，偶尔传来一声不明野兽的低吼声，让人不禁心生戒备。"
+            "descriptive": {
+                "default": "Night falls upon this ancient forest, moonlight filtering through the dense canopy casting dappled silver light. In the distance, several mysterious blue-green glows flicker among the trees, as if elves are whispering in the shadows. The air is filled with the scent of damp earth and fresh grass, occasionally punctuated by the low growl of an unknown beast, instilling a sense of caution."
             },
-            "戏剧性": {
-                "default": "黑暗如潮水般吞噬着森林！诡异的光芒在树林深处闪烁，仿佛来自异世界的召唤！每一缕月光都透露着不祥的预兆，每一声风响都可能是危险的先兆！冒险者们，你们是否有勇气踏入这片被诅咒的土地？"
+            "dramatic": {
+                "default": "Darkness swallows the forest like a tide! Eerie lights flicker deep within the woods, as if summoned from another world! Every ray of moonlight reveals an ominous portent, every whisper of wind could herald danger! Adventurers, do you have the courage to step into this cursed land?"
             },
-            "神秘": {
-                "default": "森林中隐藏着不为人知的秘密...那些飘忽的光芒似乎在暗示着什么，或许是古老的魔法，或许是失落的灵魂。树木的阴影中似乎有什么在窥视着，但当你仔细观察时，却什么也看不到。这片森林保守着它的秘密，等待着勇敢者去揭开真相。"
+            "mysterious": {
+                "default": "The forest hides secrets unknown to mortals... Those flickering lights seem to hint at something, perhaps ancient magic, perhaps lost souls. Something seems to watch from the shadows of the trees, but when you look closely, nothing is there. This forest keeps its secrets, waiting for the brave to uncover the truth."
             },
-            "紧张": {
-                "default": "危险！树影中有什么在移动！那些诡异的光芒越来越近，时间不多了！你们必须立刻做出决定：是前进还是后退？每一步都可能踏入陷阱！保持警惕，准备战斗！"
+            "tense": {
+                "default": "Danger! Something moves in the tree shadows! Those eerie lights are getting closer, time is running out! You must decide immediately: advance or retreat? Every step could be a trap! Stay alert, prepare for battle!"
             },
-            "恐怖": {
-                "default": "阴冷的恐惧感爬上脊背...森林中传来令人不安的声音，仿佛有什么邪恶的存在在黑暗中窥视着。枯败的树枝在风中发出如同哀嚎般的声响，地面上散落着不知名的骨头。这里的空气充满了死亡的气息，每一步都可能踏入未知的恐怖。"
+            "horror": {
+                "default": "A cold dread creeps up your spine... Unsettling sounds echo through the forest, as if some evil presence watches from the darkness. Withered branches creak in the wind like wailing voices, and unknown bones litter the ground. The air is thick with the stench of death, every step could lead into unknown terror."
             },
-            "浪漫": {
-                "default": "月光如水银般洒在森林中，为这片静谧的土地披上了一层梦幻的银纱。微风轻抚着树叶，奏响了大自然的夜曲。远处传来夜莺的歌声，与潺潺的溪水声交织成一曲优美的小夜曲。这里的一切都显得如此温柔而浪漫，仿佛是诗人笔下的仙境。"
+            "romantic": {
+                "default": "Moonlight spills like liquid silver across the forest, draping this tranquil land in a dreamlike veil. A gentle breeze caresses the leaves, playing nature's nocturne. In the distance, a nightingale's song mingles with the babbling brook, weaving a beautiful serenade. Everything here seems so tender and romantic, like a fairyland from a poet's pen."
             },
-            "幽默": {
-                "default": "这片森林看起来颇有些'个性'，树木们似乎在摆出各种奇怪的姿势，仿佛在参加一场'最佳造型'比赛。一只松鼠正端坐在树枝上，用一种颇为严肃的表情审视着你们，仿佛在说'又是一群迷路的冒险者'。就连那些神秘的光芒都显得有些俏皮，时亮时暗，像是在和你们玩捉迷藏。"
+            "humorous": {
+                "default": "This forest has quite the 'personality' - the trees seem to strike various odd poses, as if competing in a 'best posture' contest. A squirrel sits perched on a branch, regarding you with a rather serious expression, as if to say 'another group of lost adventurers'. Even those mysterious lights seem playful, flickering on and off, as if playing hide-and-seek with you."
             },
-            "史诗": {
-                "default": "这里，曾经是古老传说的起源之地！巍峨的古树见证了无数英雄的崛起与陨落，每一片叶子都承载着传奇的记忆。那些在林间闪烁的光芒，正是远古魔法的余韵，诉说着这片土地曾经的辉煌。站在这里，你们仿佛能听到历史的回声，感受到命运的召唤。"
+            "epic": {
+                "default": "Here, once stood the birthplace of ancient legends! Towering ancient trees have witnessed the rise and fall of countless heroes, every leaf bearing the memory of legends. Those lights flickering among the trees are echoes of ancient magic, telling of this land's former glory. Standing here, you can almost hear history's echo, feel destiny's call."
             },
-            "温馨": {
-                "default": "这片森林就像一个温暖的家，古老的橡树张开它粗壮的臂膀，为所有生灵提供庇护。林间的小径被柔软的苔藓覆盖，踩上去舒适而安静。不时有小动物从灌木丛中探出头来，用好奇而友善的眼神打量着你们。这里的空气清新甘甜，让人感到安心和放松。"
+            "cozy": {
+                "default": "This forest feels like a warm home, ancient oaks spreading their sturdy arms to shelter all living things. The forest paths are covered in soft moss, comfortable and quiet underfoot. Small animals occasionally peek out from the bushes, regarding you with curious and friendly eyes. The air here is fresh and sweet, bringing a sense of peace and relaxation."
             },
-            "冒险": {
-                "default": "前方，未知的冒险正在召唤！这片森林充满了探索的机会，每一条小径都可能通向意想不到的发现。那些神秘的光芒就像是指引冒险者的信标，引导着勇敢的心灵踏上未知的旅程。空气中弥漫着兴奋的气息，仿佛整个世界都在等待着你们去探索和征服。"
+            "adventurous": {
+                "default": "Ahead, unknown adventures beckon! This forest is full of opportunities for exploration, every path could lead to unexpected discoveries. Those mysterious lights are like beacons guiding adventurers, leading brave hearts on journeys into the unknown. The air is thick with excitement, as if the entire world awaits your exploration and conquest."
             }
         }
         
-        # 选择合适的演示描述
+        # Select appropriate demo description
         if style in demo_descriptions:
             base_desc = demo_descriptions[style]["default"]
         else:
-            # 自定义风格，使用通用描述模板
-            base_desc = f"你踏入了一个充满'{style}'氛围的神秘场所。根据你所描述的'{english_prompt}'，这里的每一个细节都体现着这种独特的风格。空气中弥漫着特殊的气息，环境的每一个角落都在诉说着不同寻常的故事。这里等待着勇敢的冒险者去探索和发现。"
+            # Custom style, use generic description template
+            base_desc = f"You step into a mysterious place filled with a '{style}' atmosphere. Based on your description of '{english_prompt}', every detail here embodies this unique style. The air is filled with a special essence, every corner of the environment tells an extraordinary story. This place awaits brave adventurers to explore and discover."
         
-        # 根据目标长度调整描述
+        # Adjust description based on target length
         if length < 80:
-            # 短版本，取前半部分
-            sentences = base_desc.split("。")
-            result = "。".join(sentences[:2]) + "。"
+            # Short version, take first half
+            sentences = base_desc.split(". ")
+            result = ". ".join(sentences[:2]) + "."
         elif length > 150:
-            # 长版本，添加更多细节
+            # Long version, add more details
             additional_details = {
-                "描述性": "微风轻拂，带来远方的消息。",
-                "戏剧性": "命运的齿轮正在转动！",
-                "神秘": "一切都有其深层的含义...",
-                "紧张": "时间紧迫，必须马上行动！",
-                "恐怖": "不祥的预感在心中蔓延...",
-                "浪漫": "美好的回忆在此刻涌现。",
-                "幽默": "看来今天会是个有趣的日子。",
-                "史诗": "伟大的传说即将续写！",
-                "温馨": "心中涌起暖流般的感动。",
-                "冒险": "新的征程即将开始！"
+                "descriptive": " A gentle breeze carries news from afar.",
+                "dramatic": " The wheels of fate are turning!",
+                "mysterious": " Everything has its deeper meaning...",
+                "tense": " Time is short, you must act now!",
+                "horror": " An ominous premonition spreads through your heart...",
+                "romantic": " Beautiful memories surface in this moment.",
+                "humorous": " Looks like today will be an interesting day.",
+                "epic": " Great legends are about to be written!",
+                "cozy": " A warm feeling wells up in your heart.",
+                "adventurous": " A new journey is about to begin!"
             }
-            additional = additional_details.get(style, f"这里的'{style}'氛围愈发浓郁。")
+            additional = additional_details.get(style, f" The '{style}' atmosphere grows ever stronger.")
             result = base_desc + additional
         else:
             result = base_desc
         
-        # 添加演示标记
-        result = f"[演示模式] {result}"
+        # Add demo marker
+        result = f"[Demo Mode] {result}"
         
-        logger.info(f"生成演示场景描述，长度: {len(result)}字")
+        logger.info(f"Generated demo scene description, length: {len(result)} characters")
         return result
 
-# 创建全局实例
+# Create global instance
 scene_generator = SceneGenerator()

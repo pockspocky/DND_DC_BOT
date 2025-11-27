@@ -1,14 +1,14 @@
-"""战斗管理器 - 负责D&D战斗的核心逻辑管理"""
+"""Combat Manager - Handles core logic management for D&D combat"""
 import discord
 from typing import Optional, List, Dict, Any
 from database import db_manager
-from dice.dice_roller import DiceRoller
+from dice.advanced_roller import advanced_roller
 import logging
 
 logger = logging.getLogger(__name__)
 
 class CombatParticipant:
-    """战斗参与者数据类"""
+    """Combat participant data class"""
     def __init__(self, data: Dict[str, Any]):
         self.id = data.get('id')
         self.name = data.get('name') or ""
@@ -21,14 +21,14 @@ class CombatParticipant:
         
     @property
     def hp_percentage(self) -> float:
-        """生命值百分比"""
+        """HP percentage"""
         if self.max_hp <= 0:
             return 0.0
         return (self.current_hp / self.max_hp) * 100
     
     @property
     def status_icon(self) -> str:
-        """根据生命值返回状态图标"""
+        """Return status icon based on HP"""
         if self.current_hp <= 0:
             return "💀"
         elif self.hp_percentage <= 25:
@@ -40,11 +40,11 @@ class CombatParticipant:
     
     @property
     def type_icon(self) -> str:
-        """角色类型图标"""
+        """Character type icon"""
         return "🤖" if self.is_npc else "🎭"
 
 class CombatSession:
-    """战斗会话数据类"""
+    """Combat session data class"""
     def __init__(self, data: Dict[str, Any]):
         self.id = data.get('id')
         self.guild_id = data.get('guild_id')
@@ -57,13 +57,13 @@ class CombatSession:
         self.participants: List[CombatParticipant] = []
 
 class CombatManager:
-    """战斗管理器主类"""
+    """Combat manager main class"""
     
     def __init__(self):
-        self.dice_roller = DiceRoller()
+        self.dice_roller = advanced_roller
         
     async def is_dm(self, user: discord.Member) -> bool:
-        """检查用户是否具有DM权限"""
+        """Check if user has DM permissions"""
         dm_roles = ["DM", "dm", "Dm", "dM"]
         user_roles = [role.name for role in user.roles]
         has_dm_role = any(role in dm_roles for role in user_roles)
@@ -71,7 +71,7 @@ class CombatManager:
         return has_dm_role or has_admin
     
     async def get_active_combat(self, guild_id: int, channel_id: int) -> Optional[CombatSession]:
-        """获取当前频道的活跃战斗"""
+        """Get active combat in current channel"""
         query = """
             SELECT * FROM combat_sessions 
             WHERE guild_id = ? AND channel_id = ? AND status = 'active'
@@ -86,11 +86,11 @@ class CombatManager:
                 return combat
             return None
         except Exception as e:
-            logger.error(f"获取活跃战斗失败: {e}")
+            logger.error(f"Failed to get active combat: {e}")
             return None
     
     async def start_combat(self, guild_id: int, channel_id: int, dm_user_id: int, name: str) -> Optional[CombatSession]:
-        """开始新的战斗会话"""
+        """Start a new combat session"""
         existing_combat = await self.get_active_combat(guild_id, channel_id)
         if existing_combat:
             return None
@@ -106,8 +106,8 @@ class CombatManager:
             
             if session_id:
                 await self.log_combat_action(
-                    session_id, 1, 0, "combat_start", "系统", None,
-                    f"战斗 '{name}' 开始", None, None
+                    session_id, 1, 0, "combat_start", "System", None,
+                    f"Combat '{name}' started", None, None
                 )
                 
                 result = await db_manager.fetchone(
@@ -118,11 +118,11 @@ class CombatManager:
             return None
             
         except Exception as e:
-            logger.error(f"创建战斗会话失败: {e}")
+            logger.error(f"Failed to create combat session: {e}")
             return None
     
     async def end_combat(self, session_id: int) -> bool:
-        """结束战斗会话"""
+        """End combat session"""
         query = """
             UPDATE combat_sessions 
             SET status = 'ended', ended_at = CURRENT_TIMESTAMP 
@@ -132,19 +132,19 @@ class CombatManager:
         try:
             await db_manager.execute(query, (session_id,))
             await self.log_combat_action(
-                session_id, 0, 0, "combat_end", "系统", None,
-                "战斗结束", None, None
+                session_id, 0, 0, "combat_end", "System", None,
+                "Combat ended", None, None
             )
             return True
         except Exception as e:
-            logger.error(f"结束战斗失败: {e}")
+            logger.error(f"Failed to end combat: {e}")
             return False
     
     async def add_participant(
         self, session_id: int, name: str, max_hp: int, 
         initiative: int, ac: int = 10, is_npc: bool = False
     ) -> Optional[CombatParticipant]:
-        """添加战斗参与者"""
+        """Add combat participant"""
         try:
             existing = await db_manager.fetchone(
                 "SELECT id FROM combat_participants WHERE combat_session_id = ? AND name = ?",
@@ -168,8 +168,8 @@ class CombatManager:
             
             if participant_id:
                 await self.log_combat_action(
-                    session_id, 1, position, "add_participant", "系统", name,
-                    f"{'NPC' if is_npc else '角色'} {name} 加入战斗 (先攻: {initiative}, 生命值: {max_hp}, 护甲: {ac})",
+                    session_id, 1, position, "add_participant", "System", name,
+                    f"{'NPC' if is_npc else 'Character'} {name} joined combat (Initiative: {initiative}, HP: {max_hp}, AC: {ac})",
                     None, None
                 )
                 
@@ -183,11 +183,11 @@ class CombatManager:
             return None
             
         except Exception as e:
-            logger.error(f"添加参与者失败: {e}")
+            logger.error(f"Failed to add participant: {e}")
             return None
     
     async def get_participants(self, session_id: int) -> List[CombatParticipant]:
-        """获取战斗参与者列表"""
+        """Get list of combat participants"""
         query = """
             SELECT * FROM combat_participants 
             WHERE combat_session_id = ? AND is_active = 1
@@ -198,18 +198,18 @@ class CombatManager:
             results = await db_manager.fetchall(query, (session_id,))
             return [CombatParticipant(dict(row)) for row in results]
         except Exception as e:
-            logger.error(f"获取参与者失败: {e}")
+            logger.error(f"Failed to get participants: {e}")
             return []
 
     async def remove_participant(self, session_id: int, name: str) -> bool:
-        """移除战斗参与者"""
+        """Remove combat participant"""
         try:
-            # 检查参与者是否存在
+            # Check if participant exists
             participant = await self._get_participant_by_name(session_id, name)
             if not participant:
                 return False
             
-            # 标记参与者为非活跃状态
+            # Mark participant as inactive
             query = """
                 UPDATE combat_participants 
                 SET is_active = 0, updated_at = CURRENT_TIMESTAMP
@@ -218,26 +218,26 @@ class CombatManager:
             
             await db_manager.execute(query, (session_id, name))
             
-            # 记录战斗日志
+            # Log combat action
             await self.log_combat_action(
-                session_id, 1, participant.position_in_turn, "remove_participant", "系统", name,
-                f"{participant.type_icon} {name} 离开战斗"
+                session_id, 1, participant.position_in_turn, "remove_participant", "System", name,
+                f"{participant.type_icon} {name} left combat"
             )
             
-            # 重新排序剩余参与者
+            # Reorder remaining participants
             await self._reorder_participants(session_id)
             
-            # 调整当前回合（如果移除的是当前回合的角色）
+            # Adjust current turn (if removed character was in current turn)
             await self._adjust_current_turn_after_removal(session_id, participant.position_in_turn)
             
             return True
             
         except Exception as e:
-            logger.error(f"移除参与者失败: {e}")
+            logger.error(f"Failed to remove participant: {e}")
             return False
     
     async def next_turn(self, session_id: int) -> Optional[CombatParticipant]:
-        """切换到下一个回合"""
+        """Advance to next turn"""
         combat = await self._get_combat_by_id(session_id)
         if not combat:
             return None
@@ -264,22 +264,22 @@ class CombatManager:
             current_participant = participants[next_turn]
             
             await self.log_combat_action(
-                session_id, next_round, next_turn, "turn_change", "系统", current_participant.name,
-                f"第{next_round}回合 - {current_participant.name}的回合",
+                session_id, next_round, next_turn, "turn_change", "System", current_participant.name,
+                f"Round {next_round} - {current_participant.name}'s turn",
                 None, None
             )
             
             return current_participant
             
         except Exception as e:
-            logger.error(f"切换回合失败: {e}")
+            logger.error(f"Failed to advance turn: {e}")
             return None
     
     async def apply_damage(
         self, session_id: int, target_name: str, damage: int, 
-        attacker_name: str = "未知", dice_expr: str = None, dice_result: str = None
+        attacker_name: str = "Unknown", dice_expr: str = None, dice_result: str = None
     ) -> Optional[CombatParticipant]:
-        """对目标造成伤害"""
+        """Deal damage to target"""
         participant = await self._get_participant_by_name(session_id, target_name)
         if not participant:
             return None
@@ -297,9 +297,9 @@ class CombatManager:
         try:
             await db_manager.execute(query, (new_hp, session_id, target_name))
             
-            action_desc = f"{attacker_name} 对 {target_name} 造成 {damage} 点伤害"
+            action_desc = f"{attacker_name} dealt {damage} damage to {target_name}"
             if is_death:
-                action_desc += f" - {target_name} 倒下了!"
+                action_desc += f" - {target_name} is down!"
             
             await self.log_combat_action(
                 session_id, participant.position_in_turn, participant.position_in_turn,
@@ -311,14 +311,14 @@ class CombatManager:
             return participant
             
         except Exception as e:
-            logger.error(f"应用伤害失败: {e}")
+            logger.error(f"Failed to apply damage: {e}")
             return None
     
     async def apply_healing(
         self, session_id: int, target_name: str, healing: int,
-        healer_name: str = "未知", dice_expr: str = None, dice_result: str = None
+        healer_name: str = "Unknown", dice_expr: str = None, dice_result: str = None
     ) -> Optional[CombatParticipant]:
-        """对目标进行治疗"""
+        """Heal target"""
         participant = await self._get_participant_by_name(session_id, target_name)
         if not participant:
             return None
@@ -339,7 +339,7 @@ class CombatManager:
             await self.log_combat_action(
                 session_id, participant.position_in_turn, participant.position_in_turn,
                 "healing", healer_name, target_name,
-                f"{healer_name} 为 {target_name} 治疗 {actual_healing} 点生命值",
+                f"{healer_name} healed {target_name} for {actual_healing} HP",
                 dice_expr, dice_result, 0, actual_healing, old_hp, new_hp
             )
             
@@ -347,7 +347,7 @@ class CombatManager:
             return participant
             
         except Exception as e:
-            logger.error(f"应用治疗失败: {e}")
+            logger.error(f"Failed to apply healing: {e}")
             return None
     
     async def log_combat_action(
@@ -357,7 +357,7 @@ class CombatManager:
         damage: int = 0, healing: int = 0, hp_before: Optional[int] = None,
         hp_after: Optional[int] = None, is_critical: bool = False, is_death: bool = False
     ) -> bool:
-        """记录战斗行动日志"""
+        """Log combat action"""
         query = """
             INSERT INTO combat_logs 
             (combat_session_id, round_number, turn_order, action_type, actor_name, target_name,
@@ -374,11 +374,11 @@ class CombatManager:
             ))
             return True
         except Exception as e:
-            logger.error(f"记录战斗日志失败: {e}")
+            logger.error(f"Failed to log combat action: {e}")
             return False
     
     async def _calculate_turn_position(self, session_id: int, initiative: int) -> int:
-        """计算新参与者的回合位置"""
+        """Calculate turn position for new participant"""
         participants = await self.get_participants(session_id)
         position = 0
         for participant in participants:
@@ -389,7 +389,7 @@ class CombatManager:
         return position
     
     async def _reorder_participants(self, session_id: int) -> bool:
-        """重新排序参与者的回合位置"""
+        """Reorder participant turn positions"""
         try:
             participants = await db_manager.fetchall(
                 "SELECT id, initiative FROM combat_participants WHERE combat_session_id = ? ORDER BY initiative DESC, id ASC",
@@ -403,11 +403,11 @@ class CombatManager:
                 )
             return True
         except Exception as e:
-            logger.error(f"重新排序参与者失败: {e}")
+            logger.error(f"Failed to reorder participants: {e}")
             return False
     
     async def _get_combat_by_id(self, session_id: int) -> Optional[CombatSession]:
-        """根据ID获取战斗会话"""
+        """Get combat session by ID"""
         try:
             result = await db_manager.fetchone(
                 "SELECT * FROM combat_sessions WHERE id = ?", (session_id,)
@@ -416,11 +416,11 @@ class CombatManager:
                 return CombatSession(dict(result))
             return None
         except Exception as e:
-            logger.error(f"获取战斗会话失败: {e}")
+            logger.error(f"Failed to get combat session: {e}")
             return None
     
     async def _get_participant_by_name(self, session_id: int, name: str) -> Optional[CombatParticipant]:
-        """根据名字获取参与者"""
+        """Get participant by name"""
         try:
             result = await db_manager.fetchone(
                 "SELECT * FROM combat_participants WHERE combat_session_id = ? AND name = ? AND is_active = 1",
@@ -430,11 +430,11 @@ class CombatManager:
                 return CombatParticipant(dict(result))
             return None
         except Exception as e:
-            logger.error(f"获取参与者失败: {e}")
+            logger.error(f"Failed to get participant: {e}")
             return None
 
     async def _adjust_current_turn_after_removal(self, session_id: int, removed_position: int) -> bool:
-        """调整移除参与者后的当前回合"""
+        """Adjust current turn after participant removal"""
         try:
             combat = await self._get_combat_by_id(session_id)
             if not combat:
@@ -442,19 +442,19 @@ class CombatManager:
             
             participants = await self.get_participants(session_id)
             if not participants:
-                # 没有参与者了，重置回合
+                # No more participants, reset turn
                 await db_manager.execute(
                     "UPDATE combat_sessions SET current_turn = 0 WHERE id = ?",
                     (session_id,)
                 )
                 return True
             
-            # 如果移除的是当前回合之前的角色，需要调整当前回合索引
+            # If removed character was before current turn, adjust current turn index
             new_turn = combat.current_turn
             if removed_position <= combat.current_turn:
                 new_turn = max(0, combat.current_turn - 1)
             
-            # 确保回合索引不超出范围
+            # Ensure turn index doesn't exceed range
             if new_turn >= len(participants):
                 new_turn = 0
             
@@ -466,5 +466,5 @@ class CombatManager:
             return True
             
         except Exception as e:
-            logger.error(f"调整回合失败: {e}")
+            logger.error(f"Failed to adjust turn: {e}")
             return False

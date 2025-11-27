@@ -1,58 +1,14 @@
 #!/usr/bin/env python3
 """
-DND Discord Bot - 龙与地下城机器人
-主启动文件，负责机器人初始化和基础命令
-整合了所有网络和SSL修复，可直接启动
+DND Discord Bot - Dungeons & Dragons Bot
+Main startup file responsible for bot initialization and basic commands
 """
 
-# === 网络和SSL修复配置 ===
-# 在所有导入之前设置环境变量
 import os
-os.environ['PYTHONHTTPSVERIFY'] = '0'
-os.environ['CURL_CA_BUNDLE'] = ''
-os.environ['REQUESTS_CA_BUNDLE'] = ''
-
-# 设置代理环境变量
-PROXY_URL = 'http://127.0.0.1:7890'
-os.environ['HTTP_PROXY'] = PROXY_URL
-os.environ['HTTPS_PROXY'] = PROXY_URL
-os.environ['ALL_PROXY'] = PROXY_URL
-
-# 强制禁用SSL验证
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
-
-# 禁用SSL警告
-import urllib3
-urllib3.disable_warnings()
-
-# 设置aiohttp连接参数
 import aiohttp
 import asyncio
 
-# 创建自定义连接器配置
-def create_connector():
-    """创建优化的aiohttp连接器"""
-    connector = aiohttp.TCPConnector(
-        limit=100,  # 连接池大小
-        limit_per_host=10,  # 每个主机的连接数
-        ttl_dns_cache=300,  # DNS缓存时间
-        use_dns_cache=True,
-        ssl=False,  # 禁用SSL验证
-        keepalive_timeout=30,  # 保持连接时间
-        enable_cleanup_closed=True
-    )
-    return connector
-
-# 显示启动信息
-print("🔧 DND Discord Bot 启动")
-print("✅ 所有SSL验证已禁用")
-print("✅ 代理环境变量已设置")
-print("✅ SSL上下文已设置为不验证")
-print("🚀 启动机器人...")
-print("=" * 50)
-
-# === 主程序导入 ===
+# === Main Program Imports ===
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -61,7 +17,7 @@ from dotenv import load_dotenv
 from database import db_manager
 from scene_generator import scene_generator
 
-# 导入新的工具系统
+# Import new utility system
 try:
     from utils import setup_logging, get_logger, error_handler
     UTILS_AVAILABLE = True
@@ -69,13 +25,12 @@ except ImportError as e:
     print(f"Warning: Utils system not available: {e}")
     UTILS_AVAILABLE = False
 
-# 环境变量和配置
+# Environment variables and configuration
 load_dotenv()
-# PROXY_URL已在文件开头设置
 
-# 日志配置
+# Logging configuration
 if UTILS_AVAILABLE:
-    # 使用新的专业日志系统
+    # Use new professional logging system
     setup_logging(
         log_level="INFO",
         log_dir="logs",
@@ -84,7 +39,7 @@ if UTILS_AVAILABLE:
     )
     logger = get_logger(__name__)
 else:
-    # 回退到基本日志配置
+    # Fallback to basic logging configuration
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -96,39 +51,32 @@ else:
     logger = logging.getLogger(__name__)
 
 class DNDBot(commands.Bot):
-    """龙与地下城机器人主类"""
+    """Dungeons & Dragons Bot main class"""
     
     def __init__(self):
-        # 机器人权限配置
+        # Bot permissions configuration
         intents = discord.Intents.default()
         intents.message_content = True
         intents.guilds = True
         intents.members = True
         
-        # 代理配置确认
-        if PROXY_URL:
-            print(f"为Discord连接准备代理设置: {PROXY_URL}")
-            logger.info(f"使用代理: {PROXY_URL}")
-        
-        # 初始化机器人
+        # Initialize bot
         super().__init__(
             command_prefix=os.getenv('PREFIX', '!'),
             intents=intents,
-            help_command=None,
-            proxy=PROXY_URL  # discord.py WebSocket连接代理
+            help_command=None
         )
         
-        # 强制设置HTTP客户端使用代理
+        # Set up HTTP client
         self._setup_http_client()
     
     def _setup_http_client(self):
-        """设置HTTP客户端配置"""
+        """Set up HTTP client configuration"""
         try:
-            # 创建自定义连接器
+            # Create connector with standard SSL verification
             connector = aiohttp.TCPConnector(
                 limit=100,
                 limit_per_host=20,
-                ssl=False,  # 禁用SSL验证
                 use_dns_cache=True,
                 ttl_dns_cache=300,
                 keepalive_timeout=30,
@@ -136,32 +84,25 @@ class DNDBot(commands.Bot):
                 force_close=False
             )
             
-            # 创建客户端会话
+            # Create client session with standard settings
             timeout = aiohttp.ClientTimeout(total=30, connect=10)
             
-            # 如果使用代理，添加代理参数
-            session_kwargs = {
-                'connector': connector,
-                'timeout': timeout,
-                'trust_env': True,
-                'headers': {
+            self._custom_session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                trust_env=True,
+                headers={
                     'User-Agent': 'DiscordBot (https://github.com/Rapptz/discord.py 2.3.2)'
                 }
-            }
+            )
             
-            # 直接在session中设置代理
-            if PROXY_URL:
-                session_kwargs['proxy'] = PROXY_URL
-            
-            self._custom_session = aiohttp.ClientSession(**session_kwargs)
-            
-            logger.info("HTTP客户端配置完成")
+            logger.info("HTTP client configuration complete")
             
         except Exception as e:
-            logger.error(f"HTTP客户端配置失败: {e}")
+            logger.error(f"HTTP client configuration failed: {e}")
     
     async def close(self):
-        """关闭机器人时清理资源"""
+        """Clean up resources when closing bot"""
         try:
             if hasattr(self, '_custom_session'):
                 await self._custom_session.close()
@@ -170,34 +111,30 @@ class DNDBot(commands.Bot):
         await super().close()
         
     async def setup_hook(self):
-        """机器人启动时的初始化"""
-        logger.info("正在设置机器人...")
+        """Initialization when bot starts"""
+        logger.info("Setting up bot...")
         
-        # 确保HTTP连接器也使用代理
-        if PROXY_URL:
-            logger.info(f"代理设置确认: {PROXY_URL}")
-        
-        # 初始化数据库
+        # Initialize database
         await self._init_database()
         
-        # 加载所有扩展
+        # Load all extensions
         await self._load_extensions()
         
-        # 同步斜杠命令
+        # Sync slash commands
         await self._sync_commands()
         
     async def _init_database(self):
-        """初始化数据库连接"""
+        """Initialize database connection"""
         try:
             await db_manager.connect()
             await db_manager.initialize_database()
-            logger.info("数据库初始化完成")
+            logger.info("Database initialization complete")
         except Exception as e:
-            logger.error(f"数据库初始化失败: {e}")
+            logger.error(f"Database initialization failed: {e}")
             raise
     
     async def _load_extensions(self):
-        """加载所有扩展模块"""
+        """Load all extension modules"""
         extensions = [
             'dice.dice_commands',
             'queries.query_commands',
@@ -206,83 +143,79 @@ class DNDBot(commands.Bot):
         
         for ext in extensions:
             try:
-                # 检查扩展是否已经加载
+                # Check if extension is already loaded
                 if ext in self.extensions:
-                    logger.info(f"{ext}扩展已存在，跳过加载")
+                    logger.info(f"{ext} extension already exists, skipping load")
                     continue
                 
                 await self.load_extension(ext)
-                logger.info(f"{ext}扩展已加载")
+                logger.info(f"{ext} extension loaded")
             except Exception as e:
-                logger.error(f"加载{ext}扩展失败: {e}")
+                logger.error(f"Failed to load {ext} extension: {e}")
     
     async def _sync_commands(self):
-        """同步斜杠命令到Discord"""
+        """Sync slash commands to Discord"""
         try:
-            # 检查是否已经同步过
+            # Check if already synced
             if hasattr(self, '_commands_synced') and self._commands_synced:
-                logger.info("斜杠命令已经同步过，跳过")
+                logger.info("Slash commands already synced, skipping")
                 return
             
             synced = await self.tree.sync()
-            logger.info(f"已同步 {len(synced)} 个斜杠命令")
+            logger.info(f"Synced {len(synced)} slash commands")
             self._commands_synced = True
         except Exception as e:
-            logger.error(f"同步斜杠命令失败: {e}")
+            logger.error(f"Failed to sync slash commands: {e}")
         
     async def on_ready(self):
-        """机器人就绪回调"""
+        """Bot ready callback"""
         if not self.user:
-            logger.error("机器人用户对象为None")
+            logger.error("Bot user object is None")
             return
             
-        logger.info(f'{self.user} 已成功登录!')
-        logger.info(f'机器人ID: {self.user.id}')
-        logger.info(f'连接到 {len(self.guilds)} 个服务器')
+        logger.info(f'{self.user} logged in successfully!')
+        logger.info(f'Bot ID: {self.user.id}')
+        logger.info(f'Connected to {len(self.guilds)} servers')
         
-        # 代理连接成功提示
-        if PROXY_URL:
-            logger.info("Discord连接成功，代理设置工作正常")
-        
-        # 同步服务器信息
+        # Sync server information
         await self._sync_guilds()
         
-        # 设置机器人状态
+        # Set bot status
         await self.change_presence(
-            activity=discord.Game(name="龙与地下城 | /help"),
+            activity=discord.Game(name="Dungeons & Dragons | /help"),
             status=discord.Status.online
         )
         
-        # 显示数据库统计
+        # Display database statistics
         await self._show_database_stats()
     
     async def _sync_guilds(self):
-        """同步服务器信息到数据库"""
+        """Sync server information to database"""
         for guild in self.guilds:
             try:
                 await db_manager.create_or_update_guild(guild.id, guild.name)
-                logger.info(f"已同步服务器: {guild.name}")
+                logger.info(f"Synced server: {guild.name}")
             except Exception as e:
-                logger.error(f"同步服务器失败 {guild.name}: {e}")
+                logger.error(f"Failed to sync server {guild.name}: {e}")
     
     async def _show_database_stats(self):
-        """显示数据库统计信息"""
+        """Display database statistics"""
         try:
             stats = await db_manager.get_database_stats()
-            logger.info(f"数据库统计: {stats}")
+            logger.info(f"Database statistics: {stats}")
         except Exception as e:
-            logger.error(f"获取数据库统计失败: {e}")
+            logger.error(f"Failed to get database statistics: {e}")
     
     async def on_guild_join(self, guild):
-        """机器人加入新服务器"""
+        """Bot joins new server"""
         try:
             await db_manager.create_or_update_guild(guild.id, guild.name)
-            logger.info(f"已加入新服务器: {guild.name}")
+            logger.info(f"Joined new server: {guild.name}")
         except Exception as e:
-            logger.error(f"处理新服务器失败: {e}")
+            logger.error(f"Failed to process new server: {e}")
     
     async def on_interaction(self, interaction):
-        """处理交互事件（用户信息同步）"""
+        """Handle interaction events (user information sync)"""
         if interaction.type == discord.InteractionType.application_command:
             try:
                 user = interaction.user
@@ -293,54 +226,54 @@ class DNDBot(commands.Bot):
                     str(user.display_avatar.url) if user.display_avatar else ""
                 )
             except Exception as e:
-                logger.error(f"更新用户信息失败: {e}")
+                logger.error(f"Failed to update user information: {e}")
         
     async def on_command_error(self, ctx, error):
-        """命令错误处理"""
+        """Command error handling"""
         error_messages = {
-            commands.CommandNotFound: f"❌ 未找到命令 `{ctx.invoked_with}`，使用 `!help` 查看可用命令",
-            commands.MissingRequiredArgument: f"❌ 缺少必需参数: `{error.param.name}`",
-            commands.BadArgument: f"❌ 参数错误: {error}"
+            commands.CommandNotFound: f"❌ Command `{ctx.invoked_with}` not found, use `!help` to see available commands",
+            commands.MissingRequiredArgument: f"❌ Missing required argument: `{error.param.name}`",
+            commands.BadArgument: f"❌ Invalid argument: {error}"
         }
         
-        message = error_messages.get(type(error), "❌ 执行命令时发生错误，请稍后再试")
+        message = error_messages.get(type(error), "❌ An error occurred while executing the command, please try again later")
         await ctx.send(message)
         
         if type(error) not in error_messages:
-            logger.error(f"命令错误: {error}")
+            logger.error(f"Command error: {error}")
     
     async def on_app_command_error(self, interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
-        """应用命令错误处理"""
+        """Application command error handling"""
         if UTILS_AVAILABLE:
-            # 使用新的错误处理系统
+            # Use new error handling system
             try:
                 await error_handler.handle_error(error, interaction=interaction)
             except Exception as handler_error:
-                logger.error(f"错误处理器失败: {handler_error}")
-                # 回退到基本错误处理
+                logger.error(f"Error handler failed: {handler_error}")
+                # Fallback to basic error handling
                 await self._basic_error_handling(interaction, error)
         else:
-            # 回退到基本错误处理
+            # Fallback to basic error handling
             await self._basic_error_handling(interaction, error)
     
     async def _basic_error_handling(self, interaction: discord.Interaction, error: Exception):
-        """基本错误处理（回退方案）"""
-        logger.error(f"应用命令错误: {error}")
+        """Basic error handling (fallback)"""
+        logger.error(f"Application command error: {error}")
         
-        # 根据错误类型给出不同的提示
+        # Provide different messages based on error type
         error_str = str(error).lower()
         if "ssl" in error_str or "clientconnectorerror" in error_str:
-            error_msg = "❌ 网络连接问题，请稍后重试"
+            error_msg = "❌ Network connection issue, please try again later"
         elif "connection reset" in error_str:
-            error_msg = "❌ 连接被重置，请稍后重试"
+            error_msg = "❌ Connection reset, please try again later"
         elif "unknown interaction" in error_str:
-            error_msg = "❌ 交互超时，请重新尝试命令"
+            error_msg = "❌ Interaction timeout, please try the command again"
         elif "timeout" in error_str:
-            error_msg = "❌ 请求超时，请稍后重试"
+            error_msg = "❌ Request timeout, please try again later"
         else:
-            error_msg = "❌ 命令执行失败，请稍后重试"
+            error_msg = "❌ Command execution failed, please try again later"
         
-        # 尝试发送错误消息，包含多重保护
+        # Try to send error message with multiple protections
         try:
             if not interaction.response.is_done():
                 await asyncio.wait_for(
@@ -353,264 +286,264 @@ class DNDBot(commands.Bot):
                     timeout=5.0
                 )
         except asyncio.TimeoutError:
-            logger.error("发送错误消息超时")
+            logger.error("Sending error message timed out")
         except Exception as e:
-            logger.error(f"发送错误消息失败: {e}")
+            logger.error(f"Failed to send error message: {e}")
 
-# 创建机器人实例
+# Create bot instance
 bot = DNDBot()
 
-# 通用命令保护装饰器
+# Universal command protection decorator
 def command_protection(func):
-    """为命令添加超时和错误保护"""
+    """Add timeout and error protection to commands"""
     async def wrapper(interaction: discord.Interaction, *args, **kwargs):
         try:
-            # 立即确认交互，避免超时
+            # Immediately acknowledge interaction to avoid timeout
             if not interaction.response.is_done():
                 await interaction.response.defer(thinking=True)
             
-            # 执行实际命令，添加超时保护
+            # Execute actual command with timeout protection
             await asyncio.wait_for(
                 func(interaction, *args, **kwargs),
                 timeout=15.0
             )
             
         except asyncio.TimeoutError:
-            logger.error(f"命令 {func.__name__} 响应超时")
+            logger.error(f"Command {func.__name__} response timeout")
             try:
                 if not interaction.response.is_done():
-                    await interaction.response.send_message("❌ 响应超时，请重试", ephemeral=True)
+                    await interaction.response.send_message("❌ Response timeout, please try again", ephemeral=True)
                 else:
-                    await interaction.followup.send("❌ 响应超时，请重试", ephemeral=True)
+                    await interaction.followup.send("❌ Response timeout, please try again", ephemeral=True)
             except:
                 pass
         except Exception as e:
-            logger.error(f"命令 {func.__name__} 失败: {e}")
+            logger.error(f"Command {func.__name__} failed: {e}")
             try:
                 if not interaction.response.is_done():
-                    await interaction.response.send_message("❌ 命令执行失败，请稍后重试", ephemeral=True)
+                    await interaction.response.send_message("❌ Command execution failed, please try again later", ephemeral=True)
                 else:
-                    await interaction.followup.send("❌ 命令执行失败，请稍后重试", ephemeral=True)
+                    await interaction.followup.send("❌ Command execution failed, please try again later", ephemeral=True)
             except:
                 pass
     
     return wrapper
 
-# === 基础斜杠命令 ===
+# === Basic Slash Commands ===
 
-@bot.tree.command(name='ping', description='测试机器人响应和延迟')
+@bot.tree.command(name='ping', description='Test bot response and latency')
 async def ping(interaction: discord.Interaction):
-    """测试机器人响应"""
+    """Test bot response"""
     latency = round(bot.latency * 1000)
-    await interaction.response.send_message(f'🏓 Pong! 延迟: {latency}ms')
+    await interaction.response.send_message(f'🏓 Pong! Latency: {latency}ms')
 
-@bot.tree.command(name='help', description='显示机器人帮助信息')
+@bot.tree.command(name='help', description='Display bot help information')
 async def help_command(interaction: discord.Interaction):
-    """显示帮助信息"""
+    """Display help information"""
     try:
-        # 立即确认交互，避免超时
+        # Immediately acknowledge interaction to avoid timeout
         await interaction.response.defer()
         
         embed = discord.Embed(
-            title="🎲 DND Discord Bot 帮助",
-            description="龙与地下城Discord机器人命令列表",
+            title="🎲 DND Discord Bot Help",
+            description="Dungeons & Dragons Discord Bot Command List",
             color=discord.Color.blue()
         )
         
-        # 基础命令
+        # Basic commands
         embed.add_field(
-            name="📋 基础命令",
+            name="📋 Basic Commands",
             value=(
-                "`/ping` - 测试机器人响应\n"
-                "`/help` - 显示此帮助信息\n"
-                "`/echo <消息>` - 重复您的消息\n"
-                "`/dbstats` - 显示数据库统计信息"
+                "`/ping` - Test bot response\n"
+                "`/help` - Display this help information\n"
+                "`/echo <message>` - Repeat your message\n"
+                "`/dbstats` - Display database statistics"
             ),
             inline=False
         )
         
-        # 骰子系统
+        # Dice system
         embed.add_field(
-            name="🎲 骰子系统",
+            name="🎲 Dice System",
             value=(
-                "`/r` - 投掷骰子 (支持多种参数)\n"
-                "`/check <修正值>` - 技能检定\n"
-                "`/save <类型> <修正值>` - 豁免检定\n"
-                "`/att <加值> <伤害骰>` - 攻击检定\n"
-                "`/stats` - 生成角色属性\n"
-                "`/rh` - 骰子详细帮助"
+                "`/r` - Roll dice (supports multiple parameters)\n"
+                "`/check <modifier>` - Skill check\n"
+                "`/save <type> <modifier>` - Saving throw\n"
+                "`/att <bonus> <damage dice>` - Attack roll\n"
+                "`/stats` - Generate character stats\n"
+                "`/rh` - Detailed dice help"
             ),
             inline=False
         )
         
-        # 查询功能
+        # Query features
         embed.add_field(
-            name="🔍 查询功能",
+            name="🔍 Query Features",
             value=(
-                "`/sp <法术名>` - 查询D&D 5e法术信息\n"
-                "`/mon <怪物名>` - 查询怪物属性和能力\n"
-                "`/sk <技能名>` - 查询技能详细说明"
+                "`/sp <spell name>` - Query D&D 5e spell information\n"
+                "`/mon <monster name>` - Query monster stats and abilities\n"
+                "`/sk <skill name>` - Query skill detailed description"
             ),
             inline=False
         )
         
-        # 战斗系统
+        # Combat system
         embed.add_field(
-            name="⚔️ 战斗系统",
+            name="⚔️ Combat System",
             value=(
-                "`/cs <名称>` - 开始新战斗\n"
-                "`/ce` - 结束当前战斗\n"
-                "`/st` - 查看战斗状态\n"
-                "`/add <角色>` - 添加参与者\n"
-                "`/rm <角色>` - 移除参与者\n"
-                "`/next` - 下一个回合\n"
-                "`/dmg <目标> <伤害>` - 造成伤害\n"
-                "`/heal <目标> <治疗>` - 治疗角色"
+                "`/cs <name>` - Start new combat\n"
+                "`/ce` - End current combat\n"
+                "`/st` - View combat status\n"
+                "`/add <character>` - Add participant\n"
+                "`/rm <character>` - Remove participant\n"
+                "`/next` - Next turn\n"
+                "`/dmg <target> <damage>` - Deal damage\n"
+                "`/heal <target> <healing>` - Heal character"
             ),
             inline=False
         )
         
-        # DM工具
+        # DM tools
         embed.add_field(
-            name="🎭 DM工具",
+            name="🎭 DM Tools",
             value=(
-                "`/scene <描述>` - 生成场景描述\n"
-                "• 支持自定义长度(50-500字)\n"
-                "• 支持任意风格词汇\n"
-                "• 常用风格：描述性、神秘、紧张、恐怖、浪漫、幽默、史诗等\n"
-                "• 或输入自定义风格词汇"
+                "`/scene <description>` - Generate scene description\n"
+                "• Supports custom length (50-500 characters)\n"
+                "• Supports any style keywords\n"
+                "• Common styles: descriptive, mysterious, tense, horror, romantic, humorous, epic, etc.\n"
+                "• Or enter custom style keywords"
             ),
             inline=False
         )
         
         embed.add_field(
-            name="💡 使用提示",
+            name="💡 Usage Tips",
             value=(
-                "• 所有命令都支持Discord的斜杠命令自动补全\n"
-                "• 查询命令请使用英文名称\n"
-                "• 骰子命令支持复杂的参数组合\n"
-                "• 战斗系统需要DM权限或管理员权限\n"
-                "• 场景生成支持任意风格词汇（如：诗意、悲伤、激昂等）\n"
-                "• 使用 `/rh` 查看详细的骰子用法"
+                "• All commands support Discord slash command auto-completion\n"
+                "• Query commands use English names\n"
+                "• Dice commands support complex parameter combinations\n"
+                "• Combat system requires DM permissions or administrator permissions\n"
+                "• Scene generation supports any style keywords (e.g., poetic, sad, passionate, etc.)\n"
+                "• Use `/rh` to view detailed dice usage"
             ),
             inline=False
         )
         
-        embed.set_footer(text="DND Discord Bot | 让您的龙与地下城游戏更精彩")
+        embed.set_footer(text="DND Discord Bot | Make your Dungeons & Dragons game more exciting")
         
-        # 使用followup发送，添加超时保护
+        # Send using followup with timeout protection
         await asyncio.wait_for(
             interaction.followup.send(embed=embed),
             timeout=10.0
         )
         
     except asyncio.TimeoutError:
-        logger.error("Help命令响应超时")
+        logger.error("Help command response timeout")
         try:
-            await interaction.followup.send("❌ 响应超时，请重试", ephemeral=True)
+            await interaction.followup.send("❌ Response timeout, please try again", ephemeral=True)
         except:
             pass
     except Exception as e:
-        logger.error(f"Help命令失败: {e}")
+        logger.error(f"Help command failed: {e}")
         try:
-            await interaction.followup.send("❌ 获取帮助信息失败，请稍后重试", ephemeral=True)
+            await interaction.followup.send("❌ Failed to get help information, please try again later", ephemeral=True)
         except:
             pass
 
-@bot.tree.command(name='echo', description='重复您输入的消息')
-@app_commands.describe(message='要重复的消息内容')
+@bot.tree.command(name='echo', description='Repeat your input message')
+@app_commands.describe(message='Message content to repeat')
 async def echo(interaction: discord.Interaction, message: str):
-    """重复消息"""
+    """Repeat message"""
     await interaction.response.send_message(f'📢 {message}')
 
-@bot.tree.command(name='scene', description='生成D&D场景描述')
+@bot.tree.command(name='scene', description='Generate D&D scene description')
 @app_commands.describe(
-    description='英文场景描述',
-    length='描述长度(字符数，50-500)',
-    style='描述风格(支持任意风格词汇，如：神秘、恐怖、浪漫、幽默等)'
+    description='English scene description',
+    length='Description length (characters, 50-500)',
+    style='Description style (supports any style keywords, e.g., mysterious, horror, romantic, humorous, etc.)'
 )
 async def generate_scene(
     interaction: discord.Interaction, 
     description: str,
     length: int = 100,
-    style: str = "描述性"
+    style: str = "descriptive"
 ):
-    """生成D&D场景描述"""
+    """Generate D&D scene description"""
     try:
-        # 立即确认交互，避免超时
+        # Immediately acknowledge interaction to avoid timeout
         await interaction.response.defer()
         
-        # 验证参数
+        # Validate parameters
         if not description.strip():
-            await interaction.followup.send("❌ 请提供场景描述", ephemeral=True)
+            await interaction.followup.send("❌ Please provide a scene description", ephemeral=True)
             return
         
         if length < 50 or length > 500:
-            await interaction.followup.send("❌ 长度必须在50-500字之间", ephemeral=True)
+            await interaction.followup.send("❌ Length must be between 50-500 characters", ephemeral=True)
             return
         
-        # 验证风格输入（允许任意风格词汇）
+        # Validate style input (allow any style keywords)
         if not style or len(style.strip()) == 0:
-            await interaction.followup.send("❌ 请提供有效的风格描述", ephemeral=True)
+            await interaction.followup.send("❌ Please provide a valid style description", ephemeral=True)
             return
         
         if len(style.strip()) > 20:
-            await interaction.followup.send("❌ 风格描述不能超过20个字符", ephemeral=True)
+            await interaction.followup.send("❌ Style description cannot exceed 20 characters", ephemeral=True)
             return
         
-        # 生成场景描述
+        # Generate scene description
         scene_description = await scene_generator.generate_scene_description(
             description, length, style
         )
         
         if scene_description:
-            # 创建美观的嵌入消息
+            # Create beautiful embed message
             embed = discord.Embed(
-                title="🎭 D&D场景描述",
+                title="🎭 D&D Scene Description",
                 description=scene_description,
                 color=discord.Color.purple()
             )
             
             embed.add_field(
-                name="📝 原始描述",
+                name="📝 Original Description",
                 value=description,
                 inline=False
             )
             
             embed.add_field(
-                name="⚙️ 生成设置",
-                value=f"**长度**: {length}字 **风格**: {style}\n**实际长度**: {len(scene_description)}字",
+                name="⚙️ Generation Settings",
+                value=f"**Length**: {length} chars **Style**: {style}\n**Actual Length**: {len(scene_description)} chars",
                 inline=False
             )
             
-            embed.set_footer(text="🎲 DM工具 | 由AI生成")
+            embed.set_footer(text="🎲 DM Tools | Generated by AI")
             
-            # 发送结果
+            # Send result
             await interaction.followup.send(embed=embed)
             
-            logger.info(f"用户 {interaction.user} 生成场景描述: {description[:50]}...")
+            logger.info(f"User {interaction.user} generated scene description: {description[:50]}...")
             
         else:
-            await interaction.followup.send("❌ 场景描述生成失败，请稍后重试", ephemeral=True)
+            await interaction.followup.send("❌ Scene description generation failed, please try again later", ephemeral=True)
             
     except asyncio.TimeoutError:
-        logger.error("场景生成命令响应超时")
+        logger.error("Scene generation command response timeout")
         try:
-            await interaction.followup.send("❌ 生成场景描述超时，请重试", ephemeral=True)
+            await interaction.followup.send("❌ Scene description generation timeout, please try again", ephemeral=True)
         except:
             pass
     except Exception as e:
-        logger.error(f"场景生成命令失败: {e}")
+        logger.error(f"Scene generation command failed: {e}")
         try:
-            await interaction.followup.send("❌ 生成场景描述失败，请稍后重试", ephemeral=True)
+            await interaction.followup.send("❌ Scene description generation failed, please try again later", ephemeral=True)
         except:
             pass
 
-@bot.tree.command(name='dbstats', description='显示数据库统计信息')
+@bot.tree.command(name='dbstats', description='Display database statistics')
 async def database_stats(interaction: discord.Interaction):
-    """显示数据库统计"""
+    """Display database statistics"""
     try:
-        # 立即确认交互，避免超时
+        # Immediately acknowledge interaction to avoid timeout
         await interaction.response.defer()
         
         stats = await asyncio.wait_for(
@@ -619,36 +552,36 @@ async def database_stats(interaction: discord.Interaction):
         )
         
         embed = discord.Embed(
-            title="📊 数据库统计",
-            description="当前数据库使用情况",
+            title="📊 Database Statistics",
+            description="Current database usage",
             color=discord.Color.green()
         )
         
-        # 用户和服务器统计
+        # User and server statistics
         embed.add_field(
-            name="用户与服务器",
-            value=f"**用户**: {stats.get('users', 0)}\n**服务器**: {stats.get('guilds', 0)}",
+            name="Users & Servers",
+            value=f"**Users**: {stats.get('users', 0)}\n**Servers**: {stats.get('guilds', 0)}",
             inline=True
         )
         
-        # 游戏数据统计
+        # Game data statistics
         embed.add_field(
-            name="游戏数据",
+            name="Game Data",
             value=(
-                f"**角色**: {stats.get('characters', 0)}\n"
-                f"**装备**: {stats.get('equipment', 0)}\n"
-                f"**战斗**: {stats.get('combat_sessions', 0)}"
+                f"**Characters**: {stats.get('characters', 0)}\n"
+                f"**Equipment**: {stats.get('equipment', 0)}\n"
+                f"**Combat Sessions**: {stats.get('combat_sessions', 0)}"
             ),
             inline=True
         )
         
-        # 投掷和查询统计
+        # Roll and query statistics
         embed.add_field(
-            name="活动统计",
+            name="Activity Statistics",
             value=(
-                f"**投掷记录**: {stats.get('dice_history', 0)}\n"
-                f"**法术查询**: {stats.get('spells', 0)}\n"
-                f"**怪物查询**: {stats.get('monsters', 0)}"
+                f"**Roll History**: {stats.get('dice_history', 0)}\n"
+                f"**Spell Queries**: {stats.get('spells', 0)}\n"
+                f"**Monster Queries**: {stats.get('monsters', 0)}"
             ),
             inline=True
         )
@@ -659,82 +592,79 @@ async def database_stats(interaction: discord.Interaction):
         )
         
     except asyncio.TimeoutError:
-        logger.error("数据库统计命令响应超时")
+        logger.error("Database statistics command response timeout")
         try:
-            await interaction.followup.send("❌ 获取数据库统计超时，请重试", ephemeral=True)
+            await interaction.followup.send("❌ Database statistics retrieval timeout, please try again", ephemeral=True)
         except:
             pass
     except Exception as e:
-        logger.error(f"获取数据库统计失败: {e}")
+        logger.error(f"Failed to get database statistics: {e}")
         try:
-            await interaction.followup.send("❌ 获取数据库统计失败，请稍后再试", ephemeral=True)
+            await interaction.followup.send("❌ Failed to get database statistics, please try again later", ephemeral=True)
         except:
             pass
 
-# === 开发者命令 ===
+# === Developer Commands ===
 
 @bot.command(name='sync')
 @commands.is_owner()
 async def sync(ctx):
-    """同步斜杠命令（仅所有者）"""
+    """Sync slash commands (owner only)"""
     try:
         synced = await bot.tree.sync()
-        await ctx.send(f"✅ 已同步 {len(synced)} 个斜杠命令")
+        await ctx.send(f"✅ Synced {len(synced)} slash commands")
     except Exception as e:
-        await ctx.send(f"❌ 同步失败: {e}")
+        await ctx.send(f"❌ Sync failed: {e}")
 
 @bot.command(name='forcesync')
 @commands.is_owner()
 async def force_sync(ctx):
-    """强制同步斜杠命令（仅所有者）"""
+    """Force sync slash commands (owner only)"""
     try:
         bot.tree.clear_commands(guild=None)
         synced = await bot.tree.sync()
-        await ctx.send(f"✅ 已强制同步 {len(synced)} 个斜杠命令")
+        await ctx.send(f"✅ Force synced {len(synced)} slash commands")
     except Exception as e:
-        await ctx.send(f"❌ 强制同步失败: {e}")
+        await ctx.send(f"❌ Force sync failed: {e}")
 
-# === 启动机器人 ===
+# === Start Bot ===
 
 async def main():
-    """主启动函数"""
+    """Main startup function"""
     token = os.getenv('DISCORD_TOKEN')
     
     if not token:
-        logger.error("未找到DISCORD_TOKEN环境变量")
+        logger.error("DISCORD_TOKEN environment variable not found")
         return
     
-    # 启动重试机制
+    # Startup retry mechanism
     max_retries = 3
     retry_delay = 5
     current_bot = None
     
     for attempt in range(max_retries):
         try:
-            logger.info(f"尝试启动机器人 (尝试 {attempt + 1}/{max_retries})")
+            logger.info(f"Attempting to start bot (attempt {attempt + 1}/{max_retries})")
             
-            # 检查网络连接
-            await check_network_connection()
-            
-            # 如果不是第一次尝试，创建新的机器人实例
+            # If not first attempt, create new bot instance
             if attempt > 0:
-                logger.info("创建新的机器人实例...")
+                logger.info("Creating new bot instance...")
                 current_bot = DNDBot()
             else:
                 current_bot = bot
             
-            # 启动机器人
+            # Start bot
             await current_bot.start(token)
-            break  # 成功启动，退出重试循环
+            break  # Successfully started, exit retry loop
             
         except aiohttp.ClientConnectorError as e:
-            logger.error(f"网络连接错误: {e}")
+            logger.error(f"Network connection error: {e}")
             if "ssl" in str(e).lower():
-                logger.error("SSL连接问题，建议使用Docker部署")
-                print("❌ SSL连接问题，建议使用Docker部署：")
+                logger.error("SSL connection issue, Docker deployment recommended")
+                print("❌ SSL connection issue, Docker deployment recommended:")
                 print("   ./deploy-docker.sh")
             
-            # 清理当前机器人实例
+            # Clean up current bot instance
             if current_bot:
                 try:
                     await current_bot.close()
@@ -742,18 +672,18 @@ async def main():
                     pass
             
             if attempt < max_retries - 1:
-                logger.info(f"等待 {retry_delay} 秒后重试...")
+                logger.info(f"Waiting {retry_delay} seconds before retry...")
                 await asyncio.sleep(retry_delay)
             else:
-                logger.error("所有重试均失败，建议检查网络连接和代理设置")
+                logger.error("All retries failed, please check network connection")
                 break
                 
         except Exception as e:
-            logger.error(f"启动机器人时发生错误: {e}")
+            logger.error(f"Error occurred while starting bot: {e}")
             import traceback
             traceback.print_exc()
             
-            # 清理当前机器人实例
+            # Clean up current bot instance
             if current_bot:
                 try:
                     await current_bot.close()
@@ -761,51 +691,23 @@ async def main():
                     pass
             
             if attempt < max_retries - 1:
-                logger.info(f"等待 {retry_delay} 秒后重试...")
+                logger.info(f"Waiting {retry_delay} seconds before retry...")
                 await asyncio.sleep(retry_delay)
             else:
-                logger.error("所有重试均失败")
+                logger.error("All retries failed")
                 break
     
-    # 清理资源
+    # Clean up resources
     try:
         await db_manager.disconnect()
     except Exception as e:
-        logger.error(f"清理数据库连接时出错: {e}")
+        logger.error(f"Error cleaning up database connection: {e}")
     
     if current_bot:
         try:
             await current_bot.close()
         except Exception as e:
-            logger.error(f"关闭机器人时出错: {e}")
-
-async def check_network_connection():
-    """检查网络连接"""
-    try:
-        logger.info("检查网络连接...")
-        
-        # 测试代理连接
-        if PROXY_URL:
-            logger.info(f"使用代理: {PROXY_URL}")
-            
-            # 创建带代理的会话
-            timeout = aiohttp.ClientTimeout(total=10)
-            async with aiohttp.ClientSession(
-                proxy=PROXY_URL,
-                timeout=timeout,
-                connector=aiohttp.TCPConnector(ssl=False)
-            ) as session:
-                async with session.get('https://httpbin.org/ip') as response:
-                    if response.status == 200:
-                        logger.info("代理连接正常")
-                    else:
-                        logger.warning(f"代理连接响应: {response.status}")
-        
-        logger.info("网络连接检查完成")
-        
-    except Exception as e:
-        logger.warning(f"网络连接检查失败: {e}")
-        logger.info("但这不影响机器人启动，继续尝试...")
+            logger.error(f"Error closing bot: {e}")
 
 if __name__ == "__main__":
     import asyncio

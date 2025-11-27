@@ -1,6 +1,6 @@
 """
-战斗辅助系统模块
-提供D&D战斗管理功能，包括先攻管理、回合管理、生命值追踪和冒险日记
+Combat assistance system module
+Provides D&D combat management features including initiative management, turn management, HP tracking, and adventure logging
 """
 
 from .combat_manager import CombatManager

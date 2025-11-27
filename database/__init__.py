@@ -1,5 +1,5 @@
 """
-数据库包初始化文件
+Database package initialization file
 """
 from .database import DatabaseManager, db_manager
 from .models import DatabaseModels

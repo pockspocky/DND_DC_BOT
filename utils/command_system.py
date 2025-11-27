@@ -1,6 +1,6 @@
 """
-基础命令系统框架
-提供统一的命令注册、路由、权限管理、参数验证等功能
+Basic command system framework
+Provides unified command registration, routing, permission management, parameter validation, and other features
 """
 
 import discord
@@ -15,29 +15,29 @@ import logging
 import inspect
 import os
 
-# 获取日志器
+# Get logger
 logger = logging.getLogger(__name__)
 
 class CommandCategory(Enum):
-    """命令分类"""
-    DICE = "dice"           # 骰子相关命令
-    QUERY = "query"         # 查询相关命令
-    COMBAT = "combat"       # 战斗相关命令
-    CHARACTER = "character" # 角色相关命令
-    ADMIN = "admin"         # 管理员命令
-    UTILITY = "utility"     # 工具命令
-    FUN = "fun"            # 娱乐命令
+    """Command categories"""
+    DICE = "dice"           # Dice-related commands
+    QUERY = "query"         # Query-related commands
+    COMBAT = "combat"       # Combat-related commands
+    CHARACTER = "character" # Character-related commands
+    ADMIN = "admin"         # Administrator commands
+    UTILITY = "utility"     # Utility commands
+    FUN = "fun"            # Fun commands
 
 class PermissionLevel(Enum):
-    """权限级别"""
-    EVERYONE = 0      # 所有人
-    REGISTERED = 1    # 已注册用户
-    MODERATOR = 2     # 版主
-    ADMIN = 3         # 管理员
-    OWNER = 4         # 机器人所有者
+    """Permission levels"""
+    EVERYONE = 0      # Everyone
+    REGISTERED = 1    # Registered users
+    MODERATOR = 2     # Moderators
+    ADMIN = 3         # Administrators
+    OWNER = 4         # Bot owner
 
 class CommandInfo:
-    """命令信息类"""
+    """Command information class"""
     
     def __init__(
         self,
@@ -63,7 +63,7 @@ class CommandInfo:
         self.last_used: Optional[float] = None
 
 class CommandRegistry:
-    """命令注册器"""
+    """Command registry"""
     
     def __init__(self):
         self.commands: Dict[str, CommandInfo] = {}
@@ -71,11 +71,11 @@ class CommandRegistry:
         self.command_handlers: Dict[str, Callable] = {}
         self.permission_checkers: Dict[PermissionLevel, Callable] = {}
         
-        # 注册默认权限检查器
+        # Register default permission checkers
         self._register_default_permission_checkers()
     
     def _register_default_permission_checkers(self):
-        """注册默认权限检查器"""
+        """Register default permission checkers"""
         self.permission_checkers[PermissionLevel.EVERYONE] = self._check_everyone
         self.permission_checkers[PermissionLevel.REGISTERED] = self._check_registered
         self.permission_checkers[PermissionLevel.MODERATOR] = self._check_moderator
@@ -93,7 +93,7 @@ class CommandRegistry:
         usage: Optional[str] = None,
         examples: Optional[List[str]] = None
     ) -> CommandInfo:
-        """注册命令"""
+        """Register command"""
         
         command_info = CommandInfo(
             name=name,
@@ -111,19 +111,19 @@ class CommandRegistry:
         if cooldown:
             self.cooldowns[name] = {}
         
-        logger.info(f"注册命令: {name} (分类: {category.value})")
+        logger.info(f"Registered command: {name} (category: {category.value})")
         return command_info
     
     def get_command(self, name: str) -> Optional[CommandInfo]:
-        """获取命令信息"""
+        """Get command information"""
         return self.commands.get(name)
     
     def get_commands_by_category(self, category: CommandCategory) -> List[CommandInfo]:
-        """根据分类获取命令列表"""
+        """Get command list by category"""
         return [cmd for cmd in self.commands.values() if cmd.category == category]
     
     def get_all_commands(self) -> List[CommandInfo]:
-        """获取所有命令"""
+        """Get all commands"""
         return list(self.commands.values())
     
     async def check_permissions(
@@ -132,7 +132,7 @@ class CommandRegistry:
         user: Union[discord.User, discord.Member], 
         guild: Optional[discord.Guild] = None
     ) -> bool:
-        """检查用户权限"""
+        """Check user permissions"""
         
         command_info = self.commands.get(command_name)
         if not command_info:
@@ -143,17 +143,17 @@ class CommandRegistry:
         
         permission_checker = self.permission_checkers.get(command_info.permission_level)
         if not permission_checker:
-            logger.warning(f"未找到权限检查器: {command_info.permission_level}")
+            logger.warning(f"Permission checker not found: {command_info.permission_level}")
             return False
         
         try:
             return await permission_checker(user, guild)
         except Exception as e:
-            logger.error(f"权限检查失败: {e}")
+            logger.error(f"Permission check failed: {e}")
             return False
     
     async def check_cooldown(self, command_name: str, user_id: int) -> Optional[float]:
-        """检查命令冷却时间"""
+        """Check command cooldown"""
         
         command_info = self.commands.get(command_name)
         if not command_info or not command_info.cooldown:
@@ -172,30 +172,30 @@ class CommandRegistry:
         return command_info.cooldown - time_passed
     
     def set_cooldown(self, command_name: str, user_id: int):
-        """设置命令冷却时间"""
+        """Set command cooldown"""
         if command_name in self.cooldowns:
             self.cooldowns[command_name][user_id] = time.time()
     
     def update_command_stats(self, command_name: str, execution_time: float):
-        """更新命令统计"""
+        """Update command statistics"""
         command_info = self.commands.get(command_name)
         if command_info:
             command_info.execution_count += 1
             command_info.total_execution_time += execution_time
             command_info.last_used = time.time()
     
-    # === 默认权限检查器 ===
+    # === Default permission checkers ===
     
     async def _check_everyone(self, user: Union[discord.User, discord.Member], guild: Optional[discord.Guild]) -> bool:
-        """所有人都可以使用"""
+        """Everyone can use"""
         return True
     
     async def _check_registered(self, user: Union[discord.User, discord.Member], guild: Optional[discord.Guild]) -> bool:
-        """已注册用户可以使用"""
+        """Registered users can use"""
         return True
     
     async def _check_moderator(self, user: Union[discord.User, discord.Member], guild: Optional[discord.Guild]) -> bool:
-        """版主可以使用"""
+        """Moderators can use"""
         if not guild:
             return False
         
@@ -210,7 +210,7 @@ class CommandRegistry:
         return member.guild_permissions.manage_messages
     
     async def _check_admin(self, user: Union[discord.User, discord.Member], guild: Optional[discord.Guild]) -> bool:
-        """管理员可以使用"""
+        """Administrators can use"""
         if not guild:
             return False
         
@@ -225,13 +225,13 @@ class CommandRegistry:
         return member.guild_permissions.administrator
     
     async def _check_owner(self, user: Union[discord.User, discord.Member], guild: Optional[discord.Guild]) -> bool:
-        """机器人所有者可以使用"""
+        """Bot owner can use"""
         owner_id = os.getenv('OWNER_ID')
         if owner_id:
             return str(user.id) == owner_id
         return False
 
-# 全局命令注册器
+# Global command registry
 command_registry = CommandRegistry()
 
 def command_route(
@@ -243,7 +243,7 @@ def command_route(
     usage: Optional[str] = None,
     examples: Optional[List[str]] = None
 ):
-    """命令路由装饰器"""
+    """Command routing decorator"""
     
     def decorator(func):
         @functools.wraps(func)
@@ -251,43 +251,43 @@ def command_route(
             start_time = time.time()
             
             try:
-                # 检查权限
+                # Check permissions
                 has_permission = await command_registry.check_permissions(
                     name, interaction.user, interaction.guild
                 )
                 
                 if not has_permission:
                     await interaction.response.send_message(
-                        "❌ 您没有使用此命令的权限", 
+                        "❌ You do not have permission to use this command", 
                         ephemeral=True
                     )
                     return
                 
-                # 检查冷却时间
+                # Check cooldown
                 cooldown_remaining = await command_registry.check_cooldown(
                     name, interaction.user.id
                 )
                 
                 if cooldown_remaining is not None:
                     await interaction.response.send_message(
-                        f"❌ 命令冷却中，请等待 {cooldown_remaining:.1f} 秒后再试",
+                        f"❌ Command on cooldown, please wait {cooldown_remaining:.1f} seconds",
                         ephemeral=True
                     )
                     return
                 
-                # 设置冷却时间
+                # Set cooldown
                 command_registry.set_cooldown(name, interaction.user.id)
                 
-                # 执行命令
+                # Execute command
                 result = await func(interaction, *args, **kwargs)
                 
-                # 更新统计
+                # Update statistics
                 execution_time = time.time() - start_time
                 command_registry.update_command_stats(name, execution_time)
                 
-                # 记录命令执行日志
+                # Log command execution
                 logger.info(
-                    f"命令执行: {name}",
+                    f"Command executed: {name}",
                     extra={
                         'command': name,
                         'user_id': interaction.user.id,
@@ -303,7 +303,7 @@ def command_route(
                 command_registry.update_command_stats(name, execution_time)
                 
                 logger.error(
-                    f"命令执行失败: {name} - {str(e)}",
+                    f"Command execution failed: {name} - {str(e)}",
                     extra={
                         'command': name,
                         'user_id': interaction.user.id,
@@ -313,10 +313,10 @@ def command_route(
                     }
                 )
                 
-                # 重新抛出异常让错误处理器处理
+                # Re-raise exception for error handler to process
                 raise
         
-        # 注册命令到注册器
+        # Register command to registry
         command_registry.register_command(
             name=name,
             description=description,

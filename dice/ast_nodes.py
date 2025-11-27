@@ -51,7 +51,7 @@ class DiceNode(ASTNode):
     """
     count: int
     size: int
-    reroll: Optional[int] = None
+    reroll: Optional[List[int]] = None  # List of values to reroll
     reroll_once: bool = True  # True for 'r', False for 'ro'
     min_value: Optional[int] = None
     max_value: Optional[int] = None

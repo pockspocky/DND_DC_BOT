@@ -251,10 +251,14 @@ class DiceParser:
                 
                 # Apply the operator
                 if op_type == TokenType.REROLL:
-                    dice_node.reroll = value
+                    if dice_node.reroll is None:
+                        dice_node.reroll = []
+                    dice_node.reroll.append(value)
                     dice_node.reroll_once = True
                 elif op_type == TokenType.REROLL_ONCE:
-                    dice_node.reroll = value
+                    if dice_node.reroll is None:
+                        dice_node.reroll = []
+                    dice_node.reroll.append(value)
                     dice_node.reroll_once = False
                 elif op_type == TokenType.MIN:
                     dice_node.min_value = value

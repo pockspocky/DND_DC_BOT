@@ -164,21 +164,21 @@ class DiceEvaluator:
             total=total
         )
     
-    def _apply_rerolls(self, rolls: List[DieResult], reroll_value: int, 
+    def _apply_rerolls(self, rolls: List[DieResult], reroll_values: List[int], 
                        reroll_once: bool, die_size: int) -> None:
         """
         Apply reroll operators to dice
         
         Args:
             rolls: List of die results to modify
-            reroll_value: Value to reroll
+            reroll_values: List of values to reroll
             reroll_once: If True, reroll once (r). If False, reroll repeatedly (ro)
             die_size: Size of the die for validation
         """
         MAX_REROLL_ITERATIONS = 100
         
         for roll in rolls:
-            if roll.final_value == reroll_value:
+            if roll.final_value in reroll_values:
                 roll.rerolled = True
                 iterations = 0
                 
@@ -189,8 +189,8 @@ class DiceEvaluator:
                     roll.is_max = (new_value == die_size)
                     roll.is_min = (new_value == 1)
                 else:
-                    # Reroll repeatedly until not reroll_value (ro operator)
-                    while roll.final_value == reroll_value and iterations < MAX_REROLL_ITERATIONS:
+                    # Reroll repeatedly until not in reroll_values (ro operator)
+                    while roll.final_value in reroll_values and iterations < MAX_REROLL_ITERATIONS:
                         new_value = self.random_func(1, die_size)
                         roll.final_value = new_value
                         roll.is_max = (new_value == die_size)

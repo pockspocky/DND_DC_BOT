@@ -1,485 +1,571 @@
 """
-D&D骰子命令系统
-简化的骰子功能实现
+Advanced D&D Dice Command System
+Uses the new advanced dice roller with expression-based syntax
 """
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, Literal
+from typing import Optional
 import logging
-from .dice_roller import dice_roller, DiceRoller
-from .dice_parser import DiceParser
+from dice.advanced_roller import advanced_roller
+from dice.exceptions import DiceError, ParseError, ValidationError, UnsupportedFeatureError
 
 logger = logging.getLogger(__name__)
 
-class DiceCommands(commands.Cog):
-    """骰子命令组 - 实现所有D&D骰子功能"""
+
+class AdvancedDiceCommands(commands.Cog):
+    """Advanced dice command group with expression-based rolling"""
     
     def __init__(self, bot):
         self.bot = bot
-        self.roller = dice_roller
+        self.roller = advanced_roller
     
-    @app_commands.command(name="r", description="投掷骰子")
+    @app_commands.command(name="r", description="Roll dice using advanced expression syntax")
     @app_commands.describe(
-        dice="基础骰子 (如: d20, d6, d100)",
-        modifier="修正值 (可选)",
-        advantage="优势/劣势/正常",
-        count="骰子数量 (可选)",
-        keep_highest="保留最高几个 (可选)",
-        drop_lowest="丢弃最低几个 (可选)",
-        private="是否私密显示结果 (仅自己可见)"
+        expression="Dice expression (e.g., 2d20kh1+5, 4d6kh3, 10d6>=5)",
+        private="Show result privately (only visible to you)"
     )
-    async def roll_dice(self, interaction: discord.Interaction, 
-                       dice: str,
-                       modifier: Optional[int] = None,
-                       advantage: Literal["正常", "优势", "劣势"] = "正常",
-                       count: Optional[int] = None,
-                       keep_highest: Optional[int] = None,
-                       drop_lowest: Optional[int] = None,
+    async def roll_dice(self, interaction: discord.Interaction,
+                       expression: str,
                        private: bool = False):
-        """基础骰子投掷命令"""
+        """
+        Advanced dice roll command with expression syntax
+        
+        Examples:
+        - 2d20kh1+5: Advantage with +5 modifier
+        - 4d6kh3: Ability score generation
+        - 2d6r1: Reroll 1s once
+        - 10d6>=5: Count successes (dice >= 5)
+        - (1d8+2)*3: Complex expressions
+        """
         try:
-            # 构建骰子表达式
-            final_expression = self._build_dice_expression(
-                dice, modifier, advantage, count, keep_highest, drop_lowest
-            )
-            
-            if not final_expression:
-                await interaction.response.send_message(
-                    "❌ 无效的骰子参数组合", ephemeral=True
-                )
-                return
-            
-            # 验证表达式
-            is_valid, message = DiceParser.validate_expression(final_expression)
-            if not is_valid:
-                await interaction.response.send_message(
-                    f"❌ {message}\n\n**支持的格式:**\n"
-                    f"• `d20` 或 `1d20` - 基础骰子\n"
-                    f"• 修正值: 使用 modifier 参数\n"
-                    f"• 优势/劣势: 使用 advantage 参数\n"
-                    f"• 多个骰子: 使用 count 参数\n"
-                    f"• 保留/丢弃: 使用 keep_highest 或 drop_lowest 参数",
-                    ephemeral=True
-                )
-                return
-            
-            # 投掷骰子
-            result = await self.roller.roll_dice(
-                final_expression, 
-                interaction.user.id, 
+            # Roll dice
+            result = await self.roller.roll(
+                expression,
+                interaction.user.id,
                 interaction.guild_id or 0,
                 interaction.channel_id or 0
             )
             
-            if not result:
-                await interaction.response.send_message(
-                    "❌ 投掷失败，请检查骰子表达式", ephemeral=True
-                )
-                return
+            # Format as Discord embed
+            embed_dict = self.roller.format_embed(result, interaction.user.display_name)
+            embed = discord.Embed.from_dict(embed_dict)
             
-            # 创建嵌入消息
-            embed_data = DiceRoller.format_dice_result_embed(
-                result, interaction.user.display_name
-            )
-            embed = discord.Embed.from_dict(embed_data)
-            
-            # 添加参数信息
-            if modifier is not None or advantage != "正常" or count is not None:
-                param_info = []
-                if modifier is not None:
-                    param_info.append(f"修正值: {modifier:+d}")
-                if advantage != "正常":
-                    param_info.append(f"类型: {advantage}")
-                if count is not None:
-                    param_info.append(f"骰子数量: {count}")
-                if keep_highest is not None:
-                    param_info.append(f"保留最高: {keep_highest}")
-                if drop_lowest is not None:
-                    param_info.append(f"丢弃最低: {drop_lowest}")
-                
-                embed.insert_field_at(0, name="参数", value=" | ".join(param_info), inline=False)
-            
+            # Send response
             await interaction.response.send_message(
-                embed=embed, ephemeral=private
+                embed=embed,
+                ephemeral=private
             )
             
+        except UnsupportedFeatureError as e:
+            await interaction.response.send_message(
+                f"❌ **Unsupported Feature**\n{str(e)}",
+                ephemeral=True
+            )
+        except ValidationError as e:
+            await interaction.response.send_message(
+                f"❌ **Validation Error**\n{str(e)}",
+                ephemeral=True
+            )
+        except ParseError as e:
+            await interaction.response.send_message(
+                f"❌ **Invalid Syntax**\n{str(e)}\n\n"
+                f"**Examples:**\n"
+                f"• `d20` or `2d20kh1+5` - Basic rolls\n"
+                f"• `4d6kh3` - Keep highest 3 of 4d6\n"
+                f"• `2d6r1` - Reroll 1s once\n"
+                f"• `10d6>=5` - Count successes\n"
+                f"• `(1d8+2)*3` - Complex expressions",
+                ephemeral=True
+            )
+        except DiceError as e:
+            await interaction.response.send_message(
+                f"❌ **Error**\n{str(e)}",
+                ephemeral=True
+            )
         except Exception as e:
-            logger.error(f"骰子投掷命令失败: {e}")
+            logger.error(f"Unexpected error in roll command: {e}", exc_info=True)
             await interaction.response.send_message(
-                "❌ 投掷时发生错误，请稍后再试", ephemeral=True
+                "❌ An unexpected error occurred. Please try again.",
+                ephemeral=True
             )
     
-    def _build_dice_expression(self, dice: str, modifier: Optional[int] = None,
-                              advantage: str = "正常", count: Optional[int] = None,
-                              keep_highest: Optional[int] = None,
-                              drop_lowest: Optional[int] = None) -> str:
-        """构建骰子表达式"""
-        try:
-            # 标准化骰子格式
-            dice = dice.strip().lower()
-            if not dice.startswith('d'):
-                if dice.isdigit():
-                    dice = f"d{dice}"
-                elif dice.startswith('1d'):
-                    dice = dice[1:]
-            
-            # 优势/劣势处理
-            if advantage == "优势":
-                base = "2d20kh1" if dice in ["d20", "1d20"] else f"2{dice}kh1"
-            elif advantage == "劣势":
-                base = "2d20kl1" if dice in ["d20", "1d20"] else f"2{dice}kl1"
-            else:
-                # 正常投掷
-                base = f"{count or ''}{dice}"
-                # 添加保留/丢弃规则
-                if keep_highest:
-                    base += f"kh{keep_highest}"
-                elif drop_lowest:
-                    base += f"dl{drop_lowest}"
-            
-            # 添加修正值
-            if modifier:
-                base += f"{modifier:+d}"
-            
-            return base
-            
-        except Exception as e:
-            logger.error(f"构建骰子表达式失败: {e}")
-            return ""
+    @app_commands.command(name="rh", description="Show advanced dice roller help")
+    async def dice_help(self, interaction: discord.Interaction):
+        """Advanced dice help command"""
+        embed = discord.Embed(
+            title="🎲 Advanced Dice Roller Help",
+            description="Powerful expression-based dice rolling for D&D",
+            color=0x00FFFF
+        )
+        
+        embed.add_field(
+            name="📋 Basic Syntax",
+            value=(
+                "`/r expression:<dice>`\n"
+                "• `d20` - Roll 1d20\n"
+                "• `2d6+3` - Roll 2d6 and add 3\n"
+                "• `1d8-1` - Roll 1d8 and subtract 1"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="⚔️ Advantage/Disadvantage",
+            value=(
+                "• `2d20kh1` - Advantage (keep highest)\n"
+                "• `2d20kl1` - Disadvantage (keep lowest)\n"
+                "• `2d20kh1+5` - Advantage with modifier"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🎯 Keep/Drop Dice",
+            value=(
+                "• `4d6kh3` - Keep highest 3 (ability scores)\n"
+                "• `4d6dl1` - Drop lowest 1 (same result)\n"
+                "• `5d10kl2` - Keep lowest 2\n"
+                "• `6d8dh2` - Drop highest 2"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🔄 Reroll",
+            value=(
+                "• `2d6r1` - Reroll 1s once\n"
+                "• `2d6ro1` - Reroll 1s repeatedly\n"
+                "• `1d8r1r2` - Reroll 1s and 2s"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="📊 Min/Max Clamping",
+            value=(
+                "• `1d8min5` - Minimum result of 5\n"
+                "• `2d10max8` - Maximum result of 8 per die\n"
+                "• `4d6min2kh3` - Min 2, keep highest 3"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="✅ Success Counting",
+            value=(
+                "• `10d6>=5` - Count dice ≥ 5\n"
+                "• `8d10<3` - Count dice < 3\n"
+                "• `6d6=6` - Count 6s\n"
+                "• `(10d6>=5)-2` - Successes minus 2"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="🧮 Complex Expressions",
+            value=(
+                "• `(1d8+2)*3` - Parentheses supported\n"
+                "• `1d8+2d6kh1+3` - Multiple dice terms\n"
+                "• `2d20kh1+1d4+5` - Advantage + bonus damage"
+            ),
+            inline=False
+        )
+        
+        embed.add_field(
+            name="💡 Tips",
+            value=(
+                "• Operators apply in order: reroll → clamp → keep/drop\n"
+                "• Use `private:True` to hide results from others\n"
+                "• Maximum 10,000 dice per roll\n"
+                "• Exploding dice (!) not supported"
+            ),
+            inline=False
+        )
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
     
-    @app_commands.command(name="check", description="技能检定")
+    @app_commands.command(name="check", description="Skill check with advantage/disadvantage")
     @app_commands.describe(
-        modifier="技能修正值",
-        advantage="优势/劣势/正常",
-        skill="技能名称 (可选)",
-        private="是否私密显示结果"
+        modifier="Skill modifier",
+        advantage="Advantage/Disadvantage/Normal",
+        skill="Skill name (optional)",
+        private="Show result privately"
     )
     async def skill_check(self, interaction: discord.Interaction,
                          modifier: int = 0,
-                         advantage: Literal["正常", "优势", "劣势"] = "正常",
+                         advantage: Optional[str] = None,
                          skill: Optional[str] = None,
                          private: bool = False):
-        """技能检定命令"""
+        """Skill check command using advanced roller"""
         try:
-            # 转换优势/劣势参数
-            has_advantage = advantage == "优势"
-            has_disadvantage = advantage == "劣势"
+            # Build expression based on advantage/disadvantage
+            if advantage == "Advantage":
+                expression = f"2d20kh1{modifier:+d}" if modifier != 0 else "2d20kh1"
+            elif advantage == "Disadvantage":
+                expression = f"2d20kl1{modifier:+d}" if modifier != 0 else "2d20kl1"
+            else:
+                expression = f"d20{modifier:+d}" if modifier != 0 else "d20"
             
-            result = await self.roller.roll_skill_check(
-                modifier,
+            # Roll dice
+            result = await self.roller.roll(
+                expression,
                 interaction.user.id,
                 interaction.guild_id or 0,
-                interaction.channel_id or 0,
-                has_advantage,
-                has_disadvantage
+                interaction.channel_id or 0
             )
             
-            # 创建嵌入消息
+            # Create embed
             embed = discord.Embed(
-                title="🎯 技能检定",
+                title="🎯 Skill Check",
                 color=0x00ff00
             )
             
             if skill:
-                embed.add_field(name="技能", value=skill, inline=True)
-            embed.add_field(name="修正值", value=f"{modifier:+d}", inline=True)
-            embed.add_field(name="类型", value=advantage, inline=True)
-            embed.add_field(name="结果", value=f"**{result.total}**", inline=False)
-            embed.add_field(name="详细", value=result.format_result(), inline=False)
+                embed.add_field(name="Skill", value=skill, inline=True)
+            embed.add_field(name="Modifier", value=f"{modifier:+d}", inline=True)
+            adv_text = advantage if advantage else "Normal"
+            embed.add_field(name="Type", value=adv_text, inline=True)
+            embed.add_field(name="Result", value=f"**{result.final_value}**", inline=False)
+            embed.add_field(name="Details", value=self.roller.format_result(result), inline=False)
             
             embed.set_author(
                 name=interaction.user.display_name,
                 icon_url=interaction.user.display_avatar.url
             )
             
-            await interaction.response.send_message(
-                embed=embed, ephemeral=private
-            )
+            await interaction.response.send_message(embed=embed, ephemeral=private)
             
-        except Exception as e:
-            logger.error(f"技能检定命令失败: {e}")
+        except DiceError as e:
             await interaction.response.send_message(
-                "❌ 技能检定失败，请稍后再试", ephemeral=True
+                f"❌ **Error**\n{str(e)}",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Skill check failed: {e}", exc_info=True)
+            await interaction.response.send_message(
+                "❌ An unexpected error occurred.",
+                ephemeral=True
             )
     
-    @app_commands.command(name="save", description="豁免检定")
+    @skill_check.autocomplete('advantage')
+    async def advantage_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for advantage parameter"""
+        choices = [
+            app_commands.Choice(name="Normal", value="Normal"),
+            app_commands.Choice(name="Advantage", value="Advantage"),
+            app_commands.Choice(name="Disadvantage", value="Disadvantage")
+        ]
+        return [choice for choice in choices if current.lower() in choice.name.lower()]
+    
+    @app_commands.command(name="save", description="Saving throw with advantage/disadvantage")
     @app_commands.describe(
-        save_type="豁免类型",
-        modifier="豁免修正值",
-        advantage="优势/劣势/正常",
-        private="是否私密显示结果"
+        save_type="Saving throw type",
+        modifier="Saving throw modifier",
+        advantage="Advantage/Disadvantage/Normal",
+        private="Show result privately"
     )
     async def saving_throw(self, interaction: discord.Interaction,
-                          save_type: Literal["力量", "敏捷", "体质", "智力", "感知", "魅力"],
+                          save_type: Optional[str] = None,
                           modifier: int = 0,
-                          advantage: Literal["正常", "优势", "劣势"] = "正常",
+                          advantage: Optional[str] = None,
                           private: bool = False):
-        """豁免检定命令"""
+        """Saving throw command using advanced roller"""
         try:
-            has_advantage = advantage == "优势"
-            has_disadvantage = advantage == "劣势"
+            # Build expression based on advantage/disadvantage
+            if advantage == "Advantage":
+                expression = f"2d20kh1{modifier:+d}" if modifier != 0 else "2d20kh1"
+            elif advantage == "Disadvantage":
+                expression = f"2d20kl1{modifier:+d}" if modifier != 0 else "2d20kl1"
+            else:
+                expression = f"d20{modifier:+d}" if modifier != 0 else "d20"
             
-            result = await self.roller.roll_saving_throw(
-                modifier,
+            # Roll dice
+            result = await self.roller.roll(
+                expression,
                 interaction.user.id,
                 interaction.guild_id or 0,
-                interaction.channel_id or 0,
-                has_advantage,
-                has_disadvantage
+                interaction.channel_id or 0
             )
             
-            # 创建嵌入消息
+            # Create embed
             embed = discord.Embed(
-                title="🛡️ 豁免检定",
+                title="🛡️ Saving Throw",
                 color=0xff9900
             )
             
-            embed.add_field(name="豁免类型", value=save_type, inline=True)
-            embed.add_field(name="修正值", value=f"{modifier:+d}", inline=True)
-            embed.add_field(name="类型", value=advantage, inline=True)
-            embed.add_field(name="结果", value=f"**{result.total}**", inline=False)
-            embed.add_field(name="详细", value=result.format_result(), inline=False)
+            embed.add_field(name="Save Type", value=save_type or "General", inline=True)
+            embed.add_field(name="Modifier", value=f"{modifier:+d}", inline=True)
+            adv_text = advantage if advantage else "Normal"
+            embed.add_field(name="Type", value=adv_text, inline=True)
+            embed.add_field(name="Result", value=f"**{result.final_value}**", inline=False)
+            embed.add_field(name="Details", value=self.roller.format_result(result), inline=False)
             
             embed.set_author(
                 name=interaction.user.display_name,
                 icon_url=interaction.user.display_avatar.url
             )
             
-            await interaction.response.send_message(
-                embed=embed, ephemeral=private
-            )
+            await interaction.response.send_message(embed=embed, ephemeral=private)
             
-        except Exception as e:
-            logger.error(f"豁免检定命令失败: {e}")
+        except DiceError as e:
             await interaction.response.send_message(
-                "❌ 豁免检定失败，请稍后再试", ephemeral=True
+                f"❌ **Error**\n{str(e)}",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Saving throw failed: {e}", exc_info=True)
+            await interaction.response.send_message(
+                "❌ An unexpected error occurred.",
+                ephemeral=True
             )
     
-    @app_commands.command(name="att", description="攻击检定和伤害")
+    @saving_throw.autocomplete('save_type')
+    async def save_type_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for save type"""
+        choices = [
+            app_commands.Choice(name="Strength", value="Strength"),
+            app_commands.Choice(name="Dexterity", value="Dexterity"),
+            app_commands.Choice(name="Constitution", value="Constitution"),
+            app_commands.Choice(name="Intelligence", value="Intelligence"),
+            app_commands.Choice(name="Wisdom", value="Wisdom"),
+            app_commands.Choice(name="Charisma", value="Charisma")
+        ]
+        return [choice for choice in choices if current.lower() in choice.name.lower()]
+    
+    @saving_throw.autocomplete('advantage')
+    async def save_advantage_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for advantage parameter"""
+        choices = [
+            app_commands.Choice(name="Normal", value="Normal"),
+            app_commands.Choice(name="Advantage", value="Advantage"),
+            app_commands.Choice(name="Disadvantage", value="Disadvantage")
+        ]
+        return [choice for choice in choices if current.lower() in choice.name.lower()]
+    
+    @app_commands.command(name="att", description="Attack roll and damage")
     @app_commands.describe(
-        attack_bonus="攻击加值",
-        damage_dice="伤害骰子表达式 (如: 1d8+3, 2d6)",
-        advantage="攻击优势/劣势/正常",
-        weapon="武器名称 (可选)",
-        private="是否私密显示结果"
+        attack_bonus="Attack bonus",
+        damage_dice="Damage dice expression (e.g., 1d8+3, 2d6)",
+        advantage="Attack Advantage/Disadvantage/Normal",
+        weapon="Weapon name (optional)",
+        private="Show result privately"
     )
     async def attack_roll(self, interaction: discord.Interaction,
                          attack_bonus: int,
                          damage_dice: str,
-                         advantage: Literal["正常", "优势", "劣势"] = "正常",
+                         advantage: Optional[str] = None,
                          weapon: Optional[str] = None,
                          private: bool = False):
-        """攻击检定命令"""
+        """Attack roll command using advanced roller"""
         try:
-            # 验证伤害骰子表达式
-            is_valid, message = DiceParser.validate_expression(damage_dice)
-            if not is_valid:
-                await interaction.response.send_message(
-                    f"❌ 伤害骰子表达式错误: {message}", ephemeral=True
-                )
-                return
+            # Build attack expression
+            if advantage == "Advantage":
+                attack_expr = f"2d20kh1{attack_bonus:+d}" if attack_bonus != 0 else "2d20kh1"
+            elif advantage == "Disadvantage":
+                attack_expr = f"2d20kl1{attack_bonus:+d}" if attack_bonus != 0 else "2d20kl1"
+            else:
+                attack_expr = f"d20{attack_bonus:+d}" if attack_bonus != 0 else "d20"
             
-            has_advantage = advantage == "优势"
-            has_disadvantage = advantage == "劣势"
+            # Roll attack
+            attack_result = await self.roller.roll(
+                attack_expr,
+                interaction.user.id,
+                interaction.guild_id or 0,
+                interaction.channel_id or 0
+            )
             
-            results = await self.roller.roll_attack(
-                attack_bonus,
+            # Roll damage
+            damage_result = await self.roller.roll(
                 damage_dice,
                 interaction.user.id,
                 interaction.guild_id or 0,
-                interaction.channel_id or 0,
-                has_advantage,
-                has_disadvantage
+                interaction.channel_id or 0
             )
             
-            # 创建嵌入消息
+            # Create embed
             embed = discord.Embed(
-                title="⚔️ 攻击检定",
+                title="⚔️ Attack Roll",
                 color=0xff0000
             )
             
             if weapon:
-                embed.add_field(name="武器", value=weapon, inline=True)
-            embed.add_field(name="攻击加值", value=f"{attack_bonus:+d}", inline=True)
-            embed.add_field(name="类型", value=advantage, inline=True)
+                embed.add_field(name="Weapon", value=weapon, inline=True)
+            embed.add_field(name="Attack Bonus", value=f"{attack_bonus:+d}", inline=True)
+            adv_text = advantage if advantage else "Normal"
+            embed.add_field(name="Type", value=adv_text, inline=True)
             
-            if 'attack' in results:
-                attack_result = results['attack']
-                embed.add_field(
-                    name="攻击结果", 
-                    value=f"**{attack_result.total}**",
-                    inline=False
-                )
-                embed.add_field(
-                    name="攻击详细",
-                    value=attack_result.format_result(),
-                    inline=False
-                )
+            embed.add_field(
+                name="Attack Result",
+                value=f"**{attack_result.final_value}**",
+                inline=False
+            )
+            embed.add_field(
+                name="Attack Details",
+                value=self.roller.format_result(attack_result),
+                inline=False
+            )
             
-            if 'damage' in results:
-                damage_result = results['damage']
-                embed.add_field(
-                    name="伤害结果",
-                    value=f"**{damage_result.total}**",
-                    inline=False
-                )
-                embed.add_field(
-                    name="伤害详细",
-                    value=damage_result.format_result(),
-                    inline=False
-                )
+            embed.add_field(
+                name="Damage Result",
+                value=f"**{damage_result.final_value}**",
+                inline=False
+            )
+            embed.add_field(
+                name="Damage Details",
+                value=self.roller.format_result(damage_result),
+                inline=False
+            )
             
             embed.set_author(
                 name=interaction.user.display_name,
                 icon_url=interaction.user.display_avatar.url
             )
             
-            await interaction.response.send_message(
-                embed=embed, ephemeral=private
-            )
+            await interaction.response.send_message(embed=embed, ephemeral=private)
             
-        except Exception as e:
-            logger.error(f"攻击检定命令失败: {e}")
+        except DiceError as e:
             await interaction.response.send_message(
-                "❌ 攻击检定失败，请稍后再试", ephemeral=True
+                f"❌ **Error**\n{str(e)}",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Attack roll failed: {e}", exc_info=True)
+            await interaction.response.send_message(
+                "❌ An unexpected error occurred.",
+                ephemeral=True
             )
     
-    @app_commands.command(name="stats", description="生成D&D角色属性")
+    @attack_roll.autocomplete('advantage')
+    async def attack_advantage_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for advantage parameter"""
+        choices = [
+            app_commands.Choice(name="Normal", value="Normal"),
+            app_commands.Choice(name="Advantage", value="Advantage"),
+            app_commands.Choice(name="Disadvantage", value="Disadvantage")
+        ]
+        return [choice for choice in choices if current.lower() in choice.name.lower()]
+    
+    @app_commands.command(name="stats", description="Generate D&D character ability scores")
     @app_commands.describe(
-        method="属性生成方法",
-        private="是否私密显示结果"
+        method="Ability score generation method",
+        private="Show result privately"
     )
     async def generate_stats(self, interaction: discord.Interaction,
-                           method: Literal["标准数组", "4d6去最低", "3d6"] = "4d6去最低",
+                           method: Optional[str] = None,
                            private: bool = True):
-        """生成角色属性命令"""
+        """Generate character ability scores using advanced roller"""
         try:
-            if method == "标准数组":
-                # D&D 5e标准数组
+            method_value = method if method else "4d6 Drop Lowest"
+            
+            if method_value == "Standard Array":
+                # D&D 5e standard array
                 stats = [15, 14, 13, 12, 10, 8]
                 embed = discord.Embed(
-                    title="📊 角色属性 - 标准数组",
-                    description="D&D 5e标准属性数组\n请自行分配到：力量、敏捷、体质、智力、感知、魅力",
+                    title="📊 Ability Scores - Standard Array",
+                    description="D&D 5e standard ability array\nAssign to: Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma",
                     color=0x9932cc
                 )
                 embed.add_field(
-                    name="属性数值",
+                    name="Ability Values",
                     value=" | ".join([f"**{stat}**" for stat in stats]),
                     inline=False
                 )
                 
-            elif method == "4d6去最低":
-                # 4d6去最低
-                results = self.roller.roll_ability_scores()
-                stats = [result.total for result in results]
-                
-                embed = discord.Embed(
-                    title="📊 角色属性 - 4d6去最低",
-                    description="为6个属性投掷4d6，去掉最低的一个\n请自行分配到：力量、敏捷、体质、智力、感知、魅力",
-                    color=0x9932cc
-                )
-                
-                # 只显示数值，不显示属性名
-                values_display = " | ".join([f"**{result.total}**" for result in results])
-                embed.add_field(
-                    name="属性数值",
-                    value=values_display,
-                    inline=False
-                )
-                
-                # 显示详细投掷过程（可选）
-                details_list = []
-                for i, result in enumerate(results):
-                    details_list.append(f"{i+1}. {result.format_result()}")
-                
-                if len(details_list) <= 3:
-                    # 如果数量少，每行显示一个
-                    details_display = "\n".join(details_list)
-                else:
-                    # 如果数量多，分成两列显示
-                    left_col = details_list[:3]
-                    right_col = details_list[3:]
-                    details_display = "\n".join(left_col)
-                
-                embed.add_field(
-                    name="投掷详情 (1-3)",
-                    value=details_display,
-                    inline=True
-                )
-                
-                if len(details_list) > 3:
-                    right_details = "\n".join(details_list[3:])
-                    embed.add_field(
-                        name="投掷详情 (4-6)",
-                        value=right_details,
-                        inline=True
-                    )
-                
-            else:  # 3d6
-                # 3d6直投
+            elif method_value == "4d6 Drop Lowest":
+                # Roll 4d6 drop lowest 6 times
                 results = []
                 for _ in range(6):
-                    result = await self.roller.roll_dice(
-                        "3d6", 
+                    result = await self.roller.roll(
+                        "4d6kh3",
                         interaction.user.id,
                         interaction.guild_id or 0,
                         interaction.channel_id or 0
                     )
-                    if result:
-                        results.append(result)
+                    results.append(result)
+                
+                stats = [r.final_value for r in results]
                 
                 embed = discord.Embed(
-                    title="📊 角色属性 - 3d6",
-                    description="为6个属性投掷3d6\n请自行分配到：力量、敏捷、体质、智力、感知、魅力",
+                    title="📊 Ability Scores - 4d6 Drop Lowest",
+                    description="Roll 4d6 for 6 abilities, keep highest 3\nAssign to: Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma",
                     color=0x9932cc
                 )
                 
-                # 只显示数值，不显示属性名
-                values_display = " | ".join([f"**{result.total}**" for result in results])
                 embed.add_field(
-                    name="属性数值",
-                    value=values_display,
+                    name="Ability Values",
+                    value=" | ".join([f"**{stat}**" for stat in stats]),
                     inline=False
                 )
                 
-                # 显示详细投掷过程
+                # Display roll details
                 details_list = []
                 for i, result in enumerate(results):
-                    details_list.append(f"{i+1}. {result.format_result()}")
+                    details_list.append(f"{i+1}. {self.roller.format_result(result)}")
                 
                 embed.add_field(
-                    name="投掷详情 (1-3)",
+                    name="Roll Details (1-3)",
                     value="\n".join(details_list[:3]),
                     inline=True
                 )
                 
                 if len(details_list) > 3:
                     embed.add_field(
-                        name="投掷详情 (4-6)",
+                        name="Roll Details (4-6)",
+                        value="\n".join(details_list[3:]),
+                        inline=True
+                    )
+                
+            else:  # 3d6
+                # Roll 3d6 six times
+                results = []
+                for _ in range(6):
+                    result = await self.roller.roll(
+                        "3d6",
+                        interaction.user.id,
+                        interaction.guild_id or 0,
+                        interaction.channel_id or 0
+                    )
+                    results.append(result)
+                
+                stats = [r.final_value for r in results]
+                
+                embed = discord.Embed(
+                    title="📊 Ability Scores - 3d6",
+                    description="Roll 3d6 for 6 abilities\nAssign to: Strength, Dexterity, Constitution, Intelligence, Wisdom, Charisma",
+                    color=0x9932cc
+                )
+                
+                embed.add_field(
+                    name="Ability Values",
+                    value=" | ".join([f"**{stat}**" for stat in stats]),
+                    inline=False
+                )
+                
+                # Display roll details
+                details_list = []
+                for i, result in enumerate(results):
+                    details_list.append(f"{i+1}. {self.roller.format_result(result)}")
+                
+                embed.add_field(
+                    name="Roll Details (1-3)",
+                    value="\n".join(details_list[:3]),
+                    inline=True
+                )
+                
+                if len(details_list) > 3:
+                    embed.add_field(
+                        name="Roll Details (4-6)",
                         value="\n".join(details_list[3:]),
                         inline=True
                     )
             
-            # 计算属性修正值和统计
-            if method == "标准数组":
-                stats = [15, 14, 13, 12, 10, 8]
-            else:
-                # 确保results中的结果有效
-                stats = []
-                for result in results:
-                    if result and hasattr(result, 'total'):
-                        stats.append(result.total)
-                
-                # 如果没有足够的结果，用默认值
-                while len(stats) < 6:
-                    stats.append(10)
-            
+            # Calculate modifiers and statistics
             modifiers = [(stat - 10) // 2 for stat in stats]
             modifier_str = " | ".join([f"{mod:+d}" for mod in modifiers])
             
             embed.add_field(
-                name="属性修正值",
+                name="Ability Modifiers",
                 value=modifier_str,
                 inline=False
             )
@@ -487,8 +573,8 @@ class DiceCommands(commands.Cog):
             total = sum(stats)
             average = total / 6
             embed.add_field(
-                name="统计",
-                value=f"总和: {total} | 平均: {average:.1f}",
+                name="Statistics",
+                value=f"Total: {total} | Average: {average:.1f}",
                 inline=False
             )
             
@@ -497,77 +583,31 @@ class DiceCommands(commands.Cog):
                 icon_url=interaction.user.display_avatar.url
             )
             
-            await interaction.response.send_message(
-                embed=embed, ephemeral=private
-            )
+            await interaction.response.send_message(embed=embed, ephemeral=private)
             
-        except Exception as e:
-            logger.error(f"属性生成命令失败: {e}")
+        except DiceError as e:
             await interaction.response.send_message(
-                "❌ 属性生成失败，请稍后再试", ephemeral=True
+                f"❌ **Error**\n{str(e)}",
+                ephemeral=True
+            )
+        except Exception as e:
+            logger.error(f"Ability score generation failed: {e}", exc_info=True)
+            await interaction.response.send_message(
+                "❌ An unexpected error occurred.",
+                ephemeral=True
             )
     
-    @app_commands.command(name="rh", description="显示骰子命令帮助")
-    async def dice_help(self, interaction: discord.Interaction):
-        """骰子帮助命令"""
-        embed = discord.Embed(
-            title="🎲 骰子系统帮助",
-            description="D&D Discord机器人的骰子功能指南",
-            color=0x00ffff
-        )
-        
-        embed.add_field(
-            name="📋 基础命令",
-            value=(
-                "`/r` - 投掷骰子 (可选参数见下方)\n"
-                "`/check <修正值>` - 技能检定\n"
-                "`/save <类型> <修正值>` - 豁免检定\n"
-                "`/attack <加值> <伤害骰>` - 攻击检定\n"
-                "`/stats` - 生成角色属性"
-            ),
-            inline=False
-        )
-        
-        embed.add_field(
-            name="🎲 /r 参数",
-            value=(
-                "`dice`: 基础骰子 (如: d20, d6, d100)\n"
-                "`modifier`: 修正值 (可选)\n"
-                "`advantage`: 优势/劣势/正常 (可选)\n"
-                "`count`: 骰子数量 (可选)\n"
-                "`keep_highest`: 保留最高几个 (可选)\n"
-                "`drop_lowest`: 丢弃最低几个 (可选)"
-            ),
-            inline=False
-        )
-        
-        embed.add_field(
-            name="🎯 /r 使用示例",
-            value=(
-                "`/r dice:d20` - 投掷1个20面骰\n"
-                "`/r dice:d20 modifier:5` - 投掷d20+5\n"
-                "`/r dice:d20 advantage:优势` - 优势骰\n"
-                "`/r dice:d6 count:3` - 投掷3d6\n"
-                "`/r dice:d6 count:4 drop_lowest:1` - 4d6去最低\n"
-                "`/r dice:d20 count:2 keep_highest:1` - 2d20保留最高"
-            ),
-            inline=False
-        )
-        
-        embed.add_field(
-            name="💡 使用提示",
-            value=(
-                "• 支持的骰子: d4, d6, d8, d10, d12, d20, d100\n"
-                "• 最多可投掷100个骰子\n"
-                "• 结果会自动保存到数据库\n"
-                "• 使用 `private: True` 参数隐藏结果"
-            ),
-            inline=False
-        )
-        
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+    @generate_stats.autocomplete('method')
+    async def method_autocomplete(self, interaction: discord.Interaction, current: str):
+        """Autocomplete for method parameter"""
+        choices = [
+            app_commands.Choice(name="4d6 Drop Lowest", value="4d6 Drop Lowest"),
+            app_commands.Choice(name="Standard Array", value="Standard Array"),
+            app_commands.Choice(name="3d6", value="3d6")
+        ]
+        return [choice for choice in choices if current.lower() in choice.name.lower()]
 
-# 异步函数，用于添加命令到机器人
+
 async def setup(bot):
-    """设置骰子命令组"""
-    await bot.add_cog(DiceCommands(bot)) 
+    """Set up advanced dice command group"""
+    await bot.add_cog(AdvancedDiceCommands(bot))
